@@ -188,7 +188,7 @@ const guardarTabla = async () => {
                       disabled={bloqueoActivo || tablaBloqueada}
                       className="flex-1 bg-gray-900 border border-gray-700 text-white text-sm rounded-lg p-2.5 focus:border-blue-500 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value="">-- Seleccionar Equipo --</option>
+                      <option value="">Seleccionar Equipo</option>
                       {equipos.map((equipo) => {
                         const estaSeleccionadoEnOtraPosicion = equiposSeleccionados.includes(equipo.id) && inputs[pos] !== equipo.id;
                         return (

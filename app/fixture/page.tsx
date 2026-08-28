@@ -223,7 +223,7 @@ export default function FixturePage() {
                 disabled={bloqueoActivo || loading}
                 className="bg-gray-950 border border-gray-700 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full p-3 disabled:opacity-60"
               >
-                <option value="">-- Selecciona el Campeón --</option>
+                <option value="">Selecciona el Campeón</option>
                 {equiposOrdenados.map((eq) => (
                   <option key={eq.id} value={eq.id}>{eq.nombre}</option>
                 ))}
@@ -238,7 +238,7 @@ export default function FixturePage() {
                 disabled={bloqueoActivo || loading}
                 className="bg-gray-950 border border-gray-700 text-white text-sm rounded-lg focus:ring-gray-400 focus:border-gray-400 block w-full p-3 disabled:opacity-60"
               >
-                <option value="">-- Selecciona el Subcampeón --</option>
+                <option value="">Selecciona el Subcampeón</option>
                 {equiposOrdenados.map((eq) => (
                   <option key={eq.id} value={eq.id}>{eq.nombre}</option>
                 ))}
