@@ -143,7 +143,7 @@ export default function PosicionesPage() {
               </div>
               <h3 className="text-2xl font-bold text-white mb-2">¡ATENCIÓN!</h3>
               <p className="text-gray-300 text-sm">
-                Una vez que guardes tu tabla, <strong className="text-red-400">NO podrás volver a modificarla</strong> en toda la temporada.
+                Una vez que guardes tu tabla, <strong className="text-red-400">NO podrás volver a modificarla</strong> no seas wachin.
               </p>
             </div>
             
@@ -160,7 +160,7 @@ export default function PosicionesPage() {
                   onClick={confirmarGuardarTabla}
                   className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-lg transition shadow-lg shadow-red-600/20"
                 >
-                  Sí, Guardar Definitivo
+                  Guardar
                 </button>
               </div>
             </div>
@@ -173,7 +173,7 @@ export default function PosicionesPage() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight">🎯 Arma tu Tabla Final</h1>
           <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 transition">
-            Volver al Panel
+            Volver
           </Link>
         </div>
 
@@ -190,7 +190,7 @@ export default function PosicionesPage() {
 
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-800 pb-6">
             <div>
-              <h2 className="text-xl font-bold">Fase de Liga (36 Equipos)</h2>
+              <h2 className="text-xl font-bold">Fase de Liga</h2>
               <p className="text-sm text-gray-400 mt-1">Acierto exacto: <strong className="text-emerald-400">3 pts</strong> | Acierto de Zona: <strong className="text-yellow-400">1 pt</strong></p>
             </div>
             
@@ -199,7 +199,7 @@ export default function PosicionesPage() {
               disabled={bloqueoActivo || guardando || loading || tablaBloqueada}
               className={`px-6 py-3 rounded-lg font-bold transition shadow-sm w-full md:w-auto text-white ${tablaBloqueada ? 'bg-gray-700 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-500'}`}
             >
-              {tablaBloqueada ? "✓ Tabla Confirmada" : guardando ? "Guardando..." : "Guardar mi Tabla (Definitivo)"}
+              {tablaBloqueada ? "✓ Tabla Confirmada" : guardando ? "Guardando..." : "Guardar Tabla"}
             </button>
           </div>
 
@@ -228,7 +228,7 @@ export default function PosicionesPage() {
                       disabled={bloqueoActivo || tablaBloqueada}
                       className="flex-1 bg-gray-900 border border-gray-700 text-white text-sm rounded-lg p-2.5 focus:border-blue-500 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value="">-- Seleccionar Equipo --</option>
+                      <option value="">Seleccionar Equipo</option>
                       {equipos.map((equipo) => {
                         const estaSeleccionadoEnOtraPosicion = equiposSeleccionados.includes(equipo.id) && inputs[pos] !== equipo.id;
                         return (
