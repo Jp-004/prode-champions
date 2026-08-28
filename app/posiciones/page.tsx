@@ -16,8 +16,10 @@ export default function PosicionesPage() {
   const [notificacion, setNotificacion] = useState<Notificacion | null>(null);
   const [inputs, setInputs] = useState<Record<number, number>>({});
   
-  // NUEVO ESTADO: Controla si la tabla ya fue guardada definitivamente
   const [tablaBloqueada, setTablaBloqueada] = useState(false);
+  
+  // NUEVO: Estado para controlar nuestro Modal de Confirmación
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
 
   const FECHA_LIMITE = new Date("2026-09-15T16:00:00Z");
   const bloqueoActivo = new Date() > FECHA_LIMITE;
@@ -47,8 +49,6 @@ export default function PosicionesPage() {
             posicionesPrevias[p.posicion_predicha] = p.equipo_id;
           });
           setInputs(posicionesPrevias);
-          
-          // LA MAGIA: Si ya tenía registros, bloqueamos la tabla para siempre
           setTablaBloqueada(true);
         }
       }
@@ -67,24 +67,27 @@ export default function PosicionesPage() {
     });
   };
 
-const guardarTabla = async () => {
+  // PASO 1: Validamos y abrimos el Modal (en lugar del window.confirm feo)
+  const intentarGuardarTabla = () => {
     if (!user) return mostrarNotificacion("Debes iniciar sesión", "error");
-    if (bloqueoActivo || tablaBloqueada) return; // Doble seguridad
+    if (bloqueoActivo || tablaBloqueada) return; 
 
-    // Validar que haya llenado los 36 lugares antes de guardar definitivamente
     const cantidadSeleccionada = Object.keys(inputs).length;
     if (cantidadSeleccionada < 36) {
       return mostrarNotificacion(`Te faltan ${36 - cantidadSeleccionada} equipos por colocar.`, "error");
     }
 
-    // --- NUEVO: CARTEL DE ADVERTENCIA PREVIO ---
-    const confirmar = window.confirm(
-      "🚨 ATENCIÓN 🚨\n\nUna vez que guardes tu tabla, NO podrás volver a modificarla en toda la temporada.\n\n¿Estás 100% seguro de que esta es tu predicción final?"
-    );
-    if (!confirmar) return; // Si el usuario pone "Cancelar", frenamos la función acá.
-    // ------------------------------------------
+    // Abrimos el modal bonito
+    setMostrarConfirmacion(true);
+  };
 
+  // PASO 2: La función real que guarda los datos (se ejecuta desde el Modal)
+  const confirmarGuardarTabla = async () => {
+    if (!user) return; // <-- Agregamos esta línea de seguridad para TypeScript
+    
+    setMostrarConfirmacion(false); 
     setGuardando(true);
+    
     const prediccionesAInsertar = Object.entries(inputs).map(([pos, equipoId]) => ({
       usuario_id: user.id,
       equipo_id: equipoId,
@@ -99,7 +102,7 @@ const guardarTabla = async () => {
       mostrarNotificacion("Error al guardar la tabla", "error");
     } else {
       mostrarNotificacion("¡Tabla guardada y bloqueada exitosamente!", "exito");
-      setTablaBloqueada(true); // La bloqueamos en pantalla inmediatamente
+      setTablaBloqueada(true); 
     }
   };
 
@@ -119,7 +122,9 @@ const guardarTabla = async () => {
   const equiposSeleccionados = Object.values(inputs);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8">
+    <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8 relative">
+      
+      {/* Toast Notification */}
       {notificacion && (
         <div className="fixed top-5 right-5 z-50 animate-bounce">
           <div className={`px-5 py-3 rounded-lg shadow-xl font-medium border flex items-center gap-2 ${notificacion.tipo === "exito" ? "bg-emerald-950/90 border-emerald-500 text-emerald-200" : "bg-red-950/90 border-red-500 text-red-200"}`}>
@@ -128,16 +133,51 @@ const guardarTabla = async () => {
         </div>
       )}
 
+      {/* --- NUEVO: MODAL DE CONFIRMACIÓN PERSONALIZADO --- */}
+      {mostrarConfirmacion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-gray-900 border border-red-500/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-red-500/10 p-6 text-center border-b border-red-500/20">
+              <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                🚨
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">¡ATENCIÓN!</h3>
+              <p className="text-gray-300 text-sm">
+                Una vez que guardes tu tabla, <strong className="text-red-400">NO podrás volver a modificarla</strong> en toda la temporada.
+              </p>
+            </div>
+            
+            <div className="p-6 bg-gray-900 text-center">
+              <p className="text-gray-400 font-medium mb-6">¿Estás 100% seguro de que esta es tu predicción final?</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setMostrarConfirmacion(false)}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 px-4 rounded-lg transition border border-gray-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarGuardarTabla}
+                  className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-lg transition shadow-lg shadow-red-600/20"
+                >
+                  Sí, Guardar Definitivo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ------------------------------------------------ */}
+
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight">🎯 Arma tu Tabla Final</h1>
           <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 transition">
-            Volver
+            Volver al Panel
           </Link>
         </div>
 
         <div className="bg-gray-900/90 p-6 rounded-xl border border-gray-800 shadow-sm">
-          {/* Mensaje de Bloqueo */}
           {tablaBloqueada && (
             <div className="mb-6 bg-blue-900/30 border border-blue-500/50 p-4 rounded-lg flex items-center gap-3">
               <span className="text-2xl">🔒</span>
@@ -155,7 +195,7 @@ const guardarTabla = async () => {
             </div>
             
             <button 
-              onClick={guardarTabla}
+              onClick={intentarGuardarTabla}
               disabled={bloqueoActivo || guardando || loading || tablaBloqueada}
               className={`px-6 py-3 rounded-lg font-bold transition shadow-sm w-full md:w-auto text-white ${tablaBloqueada ? 'bg-gray-700 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-500'}`}
             >
@@ -188,7 +228,7 @@ const guardarTabla = async () => {
                       disabled={bloqueoActivo || tablaBloqueada}
                       className="flex-1 bg-gray-900 border border-gray-700 text-white text-sm rounded-lg p-2.5 focus:border-blue-500 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value="">Seleccionar Equipo</option>
+                      <option value="">-- Seleccionar Equipo --</option>
                       {equipos.map((equipo) => {
                         const estaSeleccionadoEnOtraPosicion = equiposSeleccionados.includes(equipo.id) && inputs[pos] !== equipo.id;
                         return (
