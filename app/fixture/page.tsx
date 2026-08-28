@@ -198,7 +198,9 @@ export default function FixturePage() {
 
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">⚽ Fixture y Posiciones</h1>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+            ⚽ Fixture y Posiciones
+          </h1>
           <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 transition">
             Volver
           </Link>

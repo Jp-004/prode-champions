@@ -22,7 +22,6 @@ export default function CuadroPage() {
 
   useEffect(() => {
     const fetchCuadro = async () => {
-      // Traemos solo los partidos que NO son de fase de liga
       const { data } = await supabase
         .from("partidos")
         .select(`
@@ -40,103 +39,156 @@ export default function CuadroPage() {
     fetchCuadro();
   }, []);
 
-  // Función para filtrar los partidos por fase específica
   const getPartidosPorFase = (fase: string) => {
     return partidos.filter((p) => p.fase === fase);
   };
 
-  // Componente interno para dibujar la tarjeta de un partido
-  const TarjetaPartido = ({ partido }: { partido: PartidoCuadro }) => (
-    <div className="bg-gray-900 rounded-lg p-2.5 w-56 border border-gray-700 shadow-sm flex flex-col gap-1.5 shrink-0">
-      {/* Equipo Local */}
-      <div className="flex justify-between items-center bg-gray-950 p-2 rounded border border-gray-800">
-        <div className="flex items-center gap-2 overflow-hidden">
-          {partido.local?.escudo_url ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={partido.local.escudo_url} alt="Escudo" className="w-5 h-5 object-contain" />
-          ) : (
-            <div className="w-5 h-5 bg-gray-800 rounded-full border border-gray-700 dashed"></div>
-          )}
-          <span className={`text-xs font-semibold truncate ${partido.local ? 'text-gray-200' : 'text-gray-500'}`}>
-            {partido.local?.nombre ?? "Por definir"}
-          </span>
-        </div>
-        <span className="font-bold text-sm text-white bg-gray-800 px-2 rounded">
-          {partido.goles_local ?? "-"}
-        </span>
-      </div>
+  const TarjetaPartido = ({ partido, fase }: { partido: PartidoCuadro; fase: string }) => {
+    const isFirst = fase === '16vos';
+    const isFinal = fase === 'final';
+    
+    // Solo Cuartos, Semis y Final reducen los equipos a la mitad, así que solo ellos llevan el "tenedor" vertical.
+    const isFork = fase === 'cuartos' || fase === 'semifinal' || fase === 'final';
 
-      {/* Equipo Visitante */}
-      <div className="flex justify-between items-center bg-gray-950 p-2 rounded border border-gray-800">
-        <div className="flex items-center gap-2 overflow-hidden">
-          {partido.visitante?.escudo_url ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={partido.visitante.escudo_url} alt="Escudo" className="w-5 h-5 object-contain" />
-          ) : (
-            <div className="w-5 h-5 bg-gray-800 rounded-full border border-gray-700 dashed"></div>
-          )}
-          <span className={`text-xs font-semibold truncate ${partido.visitante ? 'text-gray-200' : 'text-gray-500'}`}>
-            {partido.visitante?.nombre ?? "Por definir"}
-          </span>
+    return (
+      // flex-1 asegura que el contenedor reparta el alto de la columna de forma matemáticamente exacta
+      <div className="relative flex-1 flex flex-col justify-center w-full">
+        
+        {/* --- LÍNEAS CONECTORAS MILIMÉTRICAS --- */}
+        {isFork && (
+          <div className="absolute top-1/4 -left-8 w-0 h-1/2 border-l-2 border-indigo-500/40 shadow-[0_0_8px_rgba(99,102,241,0.4)] pointer-events-none"></div>
+        )}
+
+        {!isFirst && (
+          <div className="absolute top-1/2 -left-8 w-8 h-[2px] bg-indigo-500/40 shadow-[0_0_8px_rgba(99,102,241,0.4)] -translate-y-1/2 pointer-events-none"></div>
+        )}
+
+        {!isFinal && (
+          <div className="absolute top-1/2 -right-8 w-8 h-[2px] bg-indigo-500/40 shadow-[0_0_8px_rgba(99,102,241,0.4)] z-0 -translate-y-1/2 pointer-events-none"></div>
+        )}
+        {/* ------------------------------------- */}
+
+        {/* --- INTERFAZ VISUAL --- */}
+        <div className={`relative z-10 rounded-xl p-1.5 border flex flex-col gap-1 w-full transition-all hover:scale-110 hover:z-20 cursor-default ${
+          isFinal 
+          ? 'bg-gradient-to-br from-yellow-900/40 to-gray-900 border-yellow-500/60 shadow-[0_0_20px_rgba(234,179,8,0.25)]' 
+          : 'bg-gradient-to-br from-gray-800/90 to-gray-900 border-gray-700 shadow-xl'
+        }`}>
+          
+          {/* Equipo Local */}
+          <div className="flex justify-between items-center bg-gray-950/80 p-2 rounded-lg border border-gray-800/60">
+            <div className="flex items-center gap-2 overflow-hidden">
+              {partido.local?.escudo_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={partido.local.escudo_url} alt="Escudo" className="w-5 h-5 lg:w-6 lg:h-6 object-contain drop-shadow-md" />
+              ) : (
+                <div className="w-5 h-5 lg:w-6 lg:h-6 bg-gray-800/80 rounded-full border border-gray-700 dashed shrink-0"></div>
+              )}
+              <span className={`text-xs lg:text-sm font-semibold truncate tracking-wide ${partido.local ? 'text-gray-100' : 'text-gray-500'}`}>
+                {partido.local?.nombre ?? "Por definir"}
+              </span>
+            </div>
+            <span className={`font-black text-xs lg:text-sm w-6 h-6 lg:w-7 lg:h-7 flex items-center justify-center rounded shadow-inner shrink-0 ${partido.goles_local !== null ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>
+              {partido.goles_local ?? "-"}
+            </span>
+          </div>
+
+          {/* Equipo Visitante */}
+          <div className="flex justify-between items-center bg-gray-950/80 p-2 rounded-lg border border-gray-800/60">
+            <div className="flex items-center gap-2 overflow-hidden">
+              {partido.visitante?.escudo_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={partido.visitante.escudo_url} alt="Escudo" className="w-5 h-5 lg:w-6 lg:h-6 object-contain drop-shadow-md" />
+              ) : (
+                <div className="w-5 h-5 lg:w-6 lg:h-6 bg-gray-800/80 rounded-full border border-gray-700 dashed shrink-0"></div>
+              )}
+              <span className={`text-xs lg:text-sm font-semibold truncate tracking-wide ${partido.visitante ? 'text-gray-100' : 'text-gray-500'}`}>
+                {partido.visitante?.nombre ?? "Por definir"}
+              </span>
+            </div>
+            <span className={`font-black text-xs lg:text-sm w-6 h-6 lg:w-7 lg:h-7 flex items-center justify-center rounded shadow-inner shrink-0 ${partido.goles_visitante !== null ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500'}`}>
+              {partido.goles_visitante ?? "-"}
+            </span>
+          </div>
         </div>
-        <span className="font-bold text-sm text-white bg-gray-800 px-2 rounded">
-          {partido.goles_visitante ?? "-"}
-        </span>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">🏆 Cuadro Final</h1>
-          <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 transition">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+            🏆 Cuadro Final
+          </h1>
+          <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold border border-gray-700 transition shadow-sm">
             Volver
           </Link>
         </div>
 
         {loading ? (
-          <p className="text-center text-gray-400 py-10">Generando llaves del torneo...</p>
+          <div className="flex justify-center items-center py-20">
+            <span className="text-gray-400 text-lg font-medium animate-pulse">Generando llaves del torneo...</span>
+          </div>
         ) : (
-          /* Contenedor con scroll horizontal para el árbol del torneo */
-          <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 overflow-x-auto">
-            <div className="flex gap-10 items-center min-w-max pb-4">
+          <div className="bg-gray-900/40 p-4 md:p-8 rounded-2xl border border-gray-800/60 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 shadow-inner">
+            
+            {/* gap-16 (64px) y w-8 (32px) en las líneas aseguran que 32+32 = 64. ¡Se tocan a la perfección! */}
+            <div className="flex gap-16 min-w-max min-h-[900px] relative px-8 py-4 items-stretch">
               
               {/* Columna 16vos */}
-              <div className="flex flex-col gap-4 relative">
-                <h2 className="text-center text-sm font-black text-gray-400 uppercase tracking-widest mb-2">16vos de Final</h2>
-                {getPartidosPorFase('16vos').map(p => <TarjetaPartido key={p.id} partido={p} />)}
+              <div className="flex flex-col w-48 lg:w-56 shrink-0">
+                <div className="h-10 shrink-0 flex items-center justify-center mb-4">
+                  <h2 className="text-xs md:text-sm font-black text-gray-400 uppercase tracking-widest drop-shadow-md">Play-Offs</h2>
+                </div>
+                <div className="flex-1 flex flex-col">
+                  {getPartidosPorFase('16vos').map(p => <TarjetaPartido key={p.id} partido={p} fase="16vos" />)}
+                </div>
               </div>
 
               {/* Columna Octavos */}
-              <div className="flex flex-col gap-8 justify-around relative h-full">
-                <h2 className="text-center text-sm font-black text-gray-400 uppercase tracking-widest mb-2">Octavos</h2>
-                {getPartidosPorFase('octavos').map(p => <TarjetaPartido key={p.id} partido={p} />)}
+              <div className="flex flex-col w-48 lg:w-56 shrink-0">
+                <div className="h-10 shrink-0 flex items-center justify-center mb-4">
+                  <h2 className="text-xs md:text-sm font-black text-gray-300 uppercase tracking-widest drop-shadow-md">Octavos</h2>
+                </div>
+                <div className="flex-1 flex flex-col">
+                  {getPartidosPorFase('octavos').map(p => <TarjetaPartido key={p.id} partido={p} fase="octavos" />)}
+                </div>
               </div>
 
               {/* Columna Cuartos */}
-              <div className="flex flex-col gap-16 justify-around relative h-full">
-                <h2 className="text-center text-sm font-black text-amber-500 uppercase tracking-widest mb-2">Cuartos</h2>
-                {getPartidosPorFase('cuartos').map(p => <TarjetaPartido key={p.id} partido={p} />)}
+              <div className="flex flex-col w-48 lg:w-56 shrink-0">
+                <div className="h-10 shrink-0 flex items-center justify-center mb-4">
+                  <h2 className="text-xs md:text-sm font-black text-blue-400 uppercase tracking-widest drop-shadow-md">Cuartos</h2>
+                </div>
+                <div className="flex-1 flex flex-col">
+                  {getPartidosPorFase('cuartos').map(p => <TarjetaPartido key={p.id} partido={p} fase="cuartos" />)}
+                </div>
               </div>
 
-              {/* Columna Semifinales */}
-              <div className="flex flex-col gap-32 justify-around relative h-full">
-                <h2 className="text-center text-sm font-black text-orange-500 uppercase tracking-widest mb-2">Semifinal</h2>
-                {getPartidosPorFase('semifinal').map(p => <TarjetaPartido key={p.id} partido={p} />)}
+              {/* Columna Semifinal */}
+              <div className="flex flex-col w-48 lg:w-56 shrink-0">
+                <div className="h-10 shrink-0 flex items-center justify-center mb-4">
+                  <h2 className="text-xs md:text-sm font-black text-emerald-400 uppercase tracking-widest drop-shadow-md">Semifinal</h2>
+                </div>
+                <div className="flex-1 flex flex-col">
+                  {getPartidosPorFase('semifinal').map(p => <TarjetaPartido key={p.id} partido={p} fase="semifinal" />)}
+                </div>
               </div>
 
               {/* Columna Final */}
-              <div className="flex flex-col justify-center relative h-full">
-                <h2 className="text-center text-sm font-black text-yellow-400 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
-                  <span>🏆</span> La Gran Final <span>🏆</span>
-                </h2>
-                {getPartidosPorFase('final').map(p => (
-                  <div key={p.id} className="ring-2 ring-yellow-500/50 rounded-lg shadow-[0_0_20px_rgba(234,179,8,0.2)]">
-                    <TarjetaPartido partido={p} />
-                  </div>
-                ))}
+              <div className="flex flex-col w-48 lg:w-56 shrink-0">
+                <div className="h-10 shrink-0 flex items-center justify-center mb-4">
+                  <h2 className="text-sm md:text-base font-black text-yellow-400 uppercase tracking-widest flex items-center gap-2 drop-shadow-md">
+                    <span>🏆</span> Final <span>🏆</span>
+                  </h2>
+                </div>
+                <div className="flex-1 flex flex-col">
+                  {getPartidosPorFase('final').map(p => (
+                    <TarjetaPartido key={p.id} partido={p} fase="final" />
+                  ))}
+                </div>
               </div>
 
             </div>

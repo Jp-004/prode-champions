@@ -16,8 +16,8 @@ type Perfil = {
   subcampeon?: EquipoInfo;
 };
 
-// Nuevo tipo para la tabla de posiciones del modal
-type EquipoTabla = { pos: number; nombre: string; escudo: string | null };
+// Modificamos el tipo para incluir los puntos calculados
+type EquipoTabla = { pos: number; nombre: string; escudo: string | null; puntos: number };
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -26,7 +26,6 @@ export default function Home() {
 
   const [perfilSeleccionado, setPerfilSeleccionado] = useState<(Perfil & { posicion: number }) | null>(null);
   
-  // Nuevos estados para cargar la tabla dentro del modal
   const [tablaModal, setTablaModal] = useState<EquipoTabla[]>([]);
   const [cargandoTabla, setCargandoTabla] = useState(false);
 
@@ -59,36 +58,52 @@ export default function Home() {
     window.location.reload();
   };
 
-const abrirPerfil = async (perfil: Perfil, posicion: number) => {
+  const abrirPerfil = async (perfil: Perfil, posicion: number) => {
     setPerfilSeleccionado({ ...perfil, posicion });
     setTablaModal([]);
     setCargandoTabla(true);
 
+    // Agregamos 'posicion_real_actual' a la consulta para poder calcular los puntos
     const { data, error } = await supabase
       .from("predicciones_posiciones")
-      .select("posicion_predicha, equipo:equipos(nombre, escudo_url)")
+      .select("posicion_predicha, equipo:equipos(nombre, escudo_url, posicion_real_actual)")
       .eq("usuario_id", perfil.id)
       .order("posicion_predicha", { ascending: true });
 
     if (!error && data) {
-      // 1. Creamos los tipos exactos para que TypeScript no se queje
-      type EquipoData = { nombre: string; escudo_url: string | null };
+      type EquipoData = { nombre: string; escudo_url: string | null; posicion_real_actual: number };
       type PrediccionQuery = {
         posicion_predicha: number;
-        equipo: EquipoData | EquipoData[]; // Cubre si Supabase lo manda como objeto o array
+        equipo: EquipoData | EquipoData[]; 
       };
 
-      // 2. Hacemos un casteo seguro sin usar "any"
       const predicciones = data as unknown as PrediccionQuery[];
 
-      // 3. Formateamos los datos
+      // Función auxiliar para saber en qué zona cayó un equipo
+      const obtenerZona = (pos: number) => {
+        if (pos >= 1 && pos <= 8) return 1;
+        if (pos >= 9 && pos <= 24) return 2;
+        return 3;
+      };
+
       const formateada = predicciones.map((d) => {
         const equipoData = Array.isArray(d.equipo) ? d.equipo[0] : d.equipo;
         
+        const posPredicha = d.posicion_predicha;
+        const posReal = equipoData?.posicion_real_actual || 0;
+        
+        // Calculamos los puntos en vivo
+        let puntosCalc = 0;
+        if (posReal > 0) {
+          if (posPredicha === posReal) puntosCalc = 3; // Acierto exacto
+          else if (obtenerZona(posPredicha) === obtenerZona(posReal)) puntosCalc = 1; // Acierto de zona
+        }
+
         return {
-          pos: d.posicion_predicha,
+          pos: posPredicha,
           nombre: equipoData?.nombre || "Sin equipo",
-          escudo: equipoData?.escudo_url || null
+          escudo: equipoData?.escudo_url || null,
+          puntos: puntosCalc
         };
       });
       
@@ -104,16 +119,29 @@ const abrirPerfil = async (perfil: Perfil, posicion: number) => {
         
         {/* Encabezado Principal */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 bg-gray-900/90 p-6 rounded-xl border border-gray-800 shadow-sm">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
-              Prode Champions League
-            </h1>
-            <p className="text-gray-400 text-sm mt-1">
-              {user ? `Sesión iniciada como: ${user.email}` : "Inicia sesión para participar"}
-            </p>
+          
+          {/* NUEVO: Contenedor flex para agrupar el logo y el texto */}
+          <div className="flex items-center gap-4 md:gap-5">
+            <div className="shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="/logo.png" 
+                alt="Champions League" 
+                className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] hover:scale-105 transition-transform" 
+              />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+                Prode Champions League
+              </h1>
+              <p className="text-gray-400 text-sm mt-1">
+                {user ? `Sesión iniciada como: ${user.email}` : "Inicia sesión para participar"}
+              </p>
+            </div>
           </div>
           
-          <div className="flex flex-wrap justify-end gap-3">
+          {/* Botones de navegación */}
+          <div className="flex flex-wrap justify-end gap-3 mt-4 md:mt-0">
             {user ? (
               <>
                 <Link href="/posiciones" className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-bold transition shadow-sm border border-emerald-500">
@@ -137,7 +165,6 @@ const abrirPerfil = async (perfil: Perfil, posicion: number) => {
           </div>
         </div>
 
-        {/* Ranking General */}
         <div className="bg-gray-900/90 rounded-xl border border-gray-800 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-gray-800 bg-gray-900">
             <h2 className="text-xl font-bold flex items-center gap-2">🏆 Ranking General</h2>
@@ -194,12 +221,10 @@ const abrirPerfil = async (perfil: Perfil, posicion: number) => {
         </div>
       </div>
 
-      {/* --- TARJETA MODAL DEL JUGADOR --- */}
       {perfilSeleccionado && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
             
-            {/* Cabecera del Modal */}
             <div className="bg-gray-800/50 p-6 text-center relative border-b border-gray-800 shrink-0">
               <button 
                 onClick={() => setPerfilSeleccionado(null)}
@@ -214,11 +239,10 @@ const abrirPerfil = async (perfil: Perfil, posicion: number) => {
               <p className="text-gray-400 text-sm mt-1">{perfilSeleccionado.puntos_totales} Puntos Totales</p>
             </div>
 
-            {/* Contenido del Modal (Scrollable) */}
             <div className="p-6 space-y-5 overflow-y-auto">
               
               <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 flex justify-between items-center">
-                <span className="text-gray-400 text-sm font-semibold">Resultados Exactos (3 pts)</span>
+                <span className="text-gray-400 text-sm font-semibold">Resultados Exactos</span>
                 <span className="text-emerald-400 font-black text-xl">{perfilSeleccionado.aciertos_exactos}</span>
               </div>
 
@@ -258,7 +282,6 @@ const abrirPerfil = async (perfil: Perfil, posicion: number) => {
                 </div>
               </div>
 
-              {/* LA NUEVA SECCIÓN: Vista de su tabla */}
               <div className="mt-2 border-t border-gray-800 pt-5">
                 <h4 className="text-sm font-bold text-gray-300 mb-3 flex justify-between items-center">
                   <span>Predicción Fase Liga</span>
@@ -270,15 +293,23 @@ const abrirPerfil = async (perfil: Perfil, posicion: number) => {
                 ) : tablaModal.length > 0 ? (
                   <div className="max-h-48 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-gray-700">
                     {tablaModal.map(t => (
-                      <div key={t.pos} className="flex items-center gap-3 text-xs bg-gray-950 p-2 rounded border border-gray-800/60">
-                        <span className={`w-5 font-black ${t.pos <= 8 ? 'text-emerald-500' : t.pos <= 24 ? 'text-orange-400' : 'text-red-500'}`}>{t.pos}°</span>
-                        {t.escudo ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={t.escudo} className="w-5 h-5 object-contain" alt="escudo" />
-                        ) : (
-                          <div className="w-5 h-5 bg-gray-800 rounded-full"></div>
-                        )}
-                        <span className="text-gray-200 font-medium truncate">{t.nombre}</span>
+                      // MODIFICADO: Agregamos justify-between para colocar los puntos a la derecha
+                      <div key={t.pos} className="flex items-center justify-between bg-gray-950 p-2 rounded border border-gray-800/60">
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className={`w-5 font-black ${t.pos <= 8 ? 'text-emerald-500' : t.pos <= 24 ? 'text-orange-400' : 'text-red-500'}`}>{t.pos}°</span>
+                          {t.escudo ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={t.escudo} className="w-5 h-5 object-contain" alt="escudo" />
+                          ) : (
+                            <div className="w-5 h-5 bg-gray-800 rounded-full"></div>
+                          )}
+                          <span className="text-gray-200 font-medium truncate">{t.nombre}</span>
+                        </div>
+                        
+                        {/* NUEVO: Puntuación con colores dinámicos */}
+                        <div className={`text-sm font-black pr-2 ${t.puntos === 3 ? 'text-emerald-400' : t.puntos === 1 ? 'text-yellow-400' : 'text-gray-600'}`}>
+                          {t.puntos}
+                        </div>
                       </div>
                     ))}
                   </div>
