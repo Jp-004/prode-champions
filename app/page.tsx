@@ -16,20 +16,25 @@ type Perfil = {
   subcampeon?: EquipoInfo;
 };
 
+// Nuevo tipo para la tabla de posiciones del modal
+type EquipoTabla = { pos: number; nombre: string; escudo: string | null };
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [ranking, setRanking] = useState<Perfil[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para controlar la ventana modal del Perfil
   const [perfilSeleccionado, setPerfilSeleccionado] = useState<(Perfil & { posicion: number }) | null>(null);
+  
+  // Nuevos estados para cargar la tabla dentro del modal
+  const [tablaModal, setTablaModal] = useState<EquipoTabla[]>([]);
+  const [cargandoTabla, setCargandoTabla] = useState(false);
 
   useEffect(() => {
     const fetchDatos = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) setUser(session.user);
 
-      // Traemos el ranking con DOBLE ORDENAMIENTO (Puntos primero, Aciertos Exactos para desempatar)
       const { data: dataRanking, error } = await supabase
         .from("perfiles")
         .select(`
@@ -38,12 +43,11 @@ export default function Home() {
           subcampeon:equipos!subcampeon_id(nombre, escudo_url)
         `)
         .order("puntos_totales", { ascending: false })
-        .order("aciertos_exactos", { ascending: false }); // Regla de desempate
+        .order("aciertos_exactos", { ascending: false });
 
       if (!error && dataRanking) {
         setRanking(dataRanking as unknown as Perfil[]);
       }
-      
       setLoading(false);
     };
 
@@ -55,9 +59,43 @@ export default function Home() {
     window.location.reload();
   };
 
-  const abrirPerfil = (perfil: Perfil, posicion: number) => {
-    // Almacenamos el perfil seleccionado para mostrarlo en el modal
+const abrirPerfil = async (perfil: Perfil, posicion: number) => {
     setPerfilSeleccionado({ ...perfil, posicion });
+    setTablaModal([]);
+    setCargandoTabla(true);
+
+    const { data, error } = await supabase
+      .from("predicciones_posiciones")
+      .select("posicion_predicha, equipo:equipos(nombre, escudo_url)")
+      .eq("usuario_id", perfil.id)
+      .order("posicion_predicha", { ascending: true });
+
+    if (!error && data) {
+      // 1. Creamos los tipos exactos para que TypeScript no se queje
+      type EquipoData = { nombre: string; escudo_url: string | null };
+      type PrediccionQuery = {
+        posicion_predicha: number;
+        equipo: EquipoData | EquipoData[]; // Cubre si Supabase lo manda como objeto o array
+      };
+
+      // 2. Hacemos un casteo seguro sin usar "any"
+      const predicciones = data as unknown as PrediccionQuery[];
+
+      // 3. Formateamos los datos
+      const formateada = predicciones.map((d) => {
+        const equipoData = Array.isArray(d.equipo) ? d.equipo[0] : d.equipo;
+        
+        return {
+          pos: d.posicion_predicha,
+          nombre: equipoData?.nombre || "Sin equipo",
+          escudo: equipoData?.escudo_url || null
+        };
+      });
+      
+      setTablaModal(formateada);
+    }
+    
+    setCargandoTabla(false);
   };
 
   return (
@@ -159,10 +197,10 @@ export default function Home() {
       {/* --- TARJETA MODAL DEL JUGADOR --- */}
       {perfilSeleccionado && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
             
             {/* Cabecera del Modal */}
-            <div className="bg-gray-800/50 p-6 text-center relative border-b border-gray-800">
+            <div className="bg-gray-800/50 p-6 text-center relative border-b border-gray-800 shrink-0">
               <button 
                 onClick={() => setPerfilSeleccionado(null)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center transition"
@@ -176,16 +214,14 @@ export default function Home() {
               <p className="text-gray-400 text-sm mt-1">{perfilSeleccionado.puntos_totales} Puntos Totales</p>
             </div>
 
-            {/* Contenido del Modal */}
-            <div className="p-6 space-y-5">
+            {/* Contenido del Modal (Scrollable) */}
+            <div className="p-6 space-y-5 overflow-y-auto">
               
-              {/* Estadística de Resultados Exactos */}
               <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 flex justify-between items-center">
                 <span className="text-gray-400 text-sm font-semibold">Resultados Exactos (3 pts)</span>
                 <span className="text-emerald-400 font-black text-xl">{perfilSeleccionado.aciertos_exactos}</span>
               </div>
 
-              {/* Candidatos al Torneo */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 text-center flex flex-col items-center justify-center">
                   <span className="text-xs text-yellow-500 font-bold uppercase tracking-wider mb-2">Campeón</span>
@@ -220,6 +256,37 @@ export default function Home() {
                     <span className="text-gray-500 text-sm italic py-2">Aún no elige</span>
                   )}
                 </div>
+              </div>
+
+              {/* LA NUEVA SECCIÓN: Vista de su tabla */}
+              <div className="mt-2 border-t border-gray-800 pt-5">
+                <h4 className="text-sm font-bold text-gray-300 mb-3 flex justify-between items-center">
+                  <span>Predicción Fase Liga</span>
+                  {tablaModal.length > 0 && <span className="text-xs font-normal text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">Tabla Guardada</span>}
+                </h4>
+                
+                {cargandoTabla ? (
+                  <div className="flex justify-center py-4"><span className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span></div>
+                ) : tablaModal.length > 0 ? (
+                  <div className="max-h-48 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-gray-700">
+                    {tablaModal.map(t => (
+                      <div key={t.pos} className="flex items-center gap-3 text-xs bg-gray-950 p-2 rounded border border-gray-800/60">
+                        <span className={`w-5 font-black ${t.pos <= 8 ? 'text-emerald-500' : t.pos <= 24 ? 'text-orange-400' : 'text-red-500'}`}>{t.pos}°</span>
+                        {t.escudo ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={t.escudo} className="w-5 h-5 object-contain" alt="escudo" />
+                        ) : (
+                          <div className="w-5 h-5 bg-gray-800 rounded-full"></div>
+                        )}
+                        <span className="text-gray-200 font-medium truncate">{t.nombre}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-gray-950 p-3 rounded-lg border border-gray-800 text-center">
+                    <p className="text-sm text-gray-500 italic">Aún no completó su tabla.</p>
+                  </div>
+                )}
               </div>
 
             </div>

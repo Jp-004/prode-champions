@@ -6,7 +6,6 @@ import Link from "next/link";
 import { User } from "@supabase/supabase-js";
 
 type Equipo = { id: number; nombre: string; escudo_url: string | null };
-
 type Notificacion = { mensaje: string; tipo: "exito" | "error" };
 
 export default function PosicionesPage() {
@@ -15,11 +14,11 @@ export default function PosicionesPage() {
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [notificacion, setNotificacion] = useState<Notificacion | null>(null);
-
-  // Diccionario: llave = posición (1-36), valor = equipo_id
   const [inputs, setInputs] = useState<Record<number, number>>({});
+  
+  // NUEVO ESTADO: Controla si la tabla ya fue guardada definitivamente
+  const [tablaBloqueada, setTablaBloqueada] = useState(false);
 
-  // Bloqueo de fecha límite (15 de Septiembre)
   const FECHA_LIMITE = new Date("2026-09-15T16:00:00Z");
   const bloqueoActivo = new Date() > FECHA_LIMITE;
 
@@ -33,23 +32,24 @@ export default function PosicionesPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) setUser(session.user);
 
-      // Traer equipos ordenados alfabéticamente para el selector
       const { data: dataEquipos } = await supabase.from("equipos").select("id, nombre, escudo_url").order("nombre", { ascending: true });
       if (dataEquipos) setEquipos(dataEquipos);
 
       if (session) {
-        // Traer predicciones previas si el usuario ya había guardado algo
         const { data: misPosiciones } = await supabase
           .from("predicciones_posiciones")
           .select("*")
           .eq("usuario_id", session.user.id);
 
-        if (misPosiciones) {
+        if (misPosiciones && misPosiciones.length > 0) {
           const posicionesPrevias: Record<number, number> = {};
           misPosiciones.forEach((p) => {
             posicionesPrevias[p.posicion_predicha] = p.equipo_id;
           });
           setInputs(posicionesPrevias);
+          
+          // LA MAGIA: Si ya tenía registros, bloqueamos la tabla para siempre
+          setTablaBloqueada(true);
         }
       }
       setLoading(false);
@@ -61,45 +61,45 @@ export default function PosicionesPage() {
   const handleChange = (posicion: number, equipoId: string) => {
     setInputs((prev) => {
       const nuevos = { ...prev };
-      if (!equipoId) {
-        delete nuevos[posicion];
-      } else {
-        nuevos[posicion] = parseInt(equipoId);
-      }
+      if (!equipoId) delete nuevos[posicion];
+      else nuevos[posicion] = parseInt(equipoId);
       return nuevos;
     });
   };
 
-  const guardarTabla = async () => {
+const guardarTabla = async () => {
     if (!user) return mostrarNotificacion("Debes iniciar sesión", "error");
-    if (bloqueoActivo) return mostrarNotificacion("La fecha límite ha pasado", "error");
+    if (bloqueoActivo || tablaBloqueada) return; // Doble seguridad
+
+    // Validar que haya llenado los 36 lugares antes de guardar definitivamente
+    const cantidadSeleccionada = Object.keys(inputs).length;
+    if (cantidadSeleccionada < 36) {
+      return mostrarNotificacion(`Te faltan ${36 - cantidadSeleccionada} equipos por colocar.`, "error");
+    }
+
+    // --- NUEVO: CARTEL DE ADVERTENCIA PREVIO ---
+    const confirmar = window.confirm(
+      "🚨 ATENCIÓN 🚨\n\nUna vez que guardes tu tabla, NO podrás volver a modificarla en toda la temporada.\n\n¿Estás 100% seguro de que esta es tu predicción final?"
+    );
+    if (!confirmar) return; // Si el usuario pone "Cancelar", frenamos la función acá.
+    // ------------------------------------------
 
     setGuardando(true);
-    
-    // Armamos el arreglo de objetos para guardar en Supabase de forma masiva
     const prediccionesAInsertar = Object.entries(inputs).map(([pos, equipoId]) => ({
       usuario_id: user.id,
       equipo_id: equipoId,
       posicion_predicha: parseInt(pos)
     }));
 
-    if (prediccionesAInsertar.length === 0) {
-      setGuardando(false);
-      return mostrarNotificacion("No has seleccionado ningún equipo.", "error");
-    }
-
-    // Usamos upsert para actualizar si ya existía la posición o el equipo
-    const { error } = await supabase
-      .from("predicciones_posiciones")
-      .upsert(prediccionesAInsertar, { onConflict: "usuario_id, posicion_predicha" });
+    const { error } = await supabase.from("predicciones_posiciones").insert(prediccionesAInsertar);
 
     setGuardando(false);
 
     if (error) {
-      console.error(error);
       mostrarNotificacion("Error al guardar la tabla", "error");
     } else {
-      mostrarNotificacion("¡Tabla guardada exitosamente!", "exito");
+      mostrarNotificacion("¡Tabla guardada y bloqueada exitosamente!", "exito");
+      setTablaBloqueada(true); // La bloqueamos en pantalla inmediatamente
     }
   };
 
@@ -116,7 +116,6 @@ export default function PosicionesPage() {
     return null;
   };
 
-  // Extraemos todos los equipos ya seleccionados en cualquier posición
   const equiposSeleccionados = Object.values(inputs);
 
   return (
@@ -138,20 +137,29 @@ export default function PosicionesPage() {
         </div>
 
         <div className="bg-gray-900/90 p-6 rounded-xl border border-gray-800 shadow-sm">
+          {/* Mensaje de Bloqueo */}
+          {tablaBloqueada && (
+            <div className="mb-6 bg-blue-900/30 border border-blue-500/50 p-4 rounded-lg flex items-center gap-3">
+              <span className="text-2xl">🔒</span>
+              <div>
+                <h3 className="font-bold text-blue-400">Tabla Guardada Definitivamente</h3>
+                <p className="text-sm text-gray-300">Ya has enviado tu predicción. Ahora los demás jugadores pueden verla en tu perfil y los cambios son irreversibles.</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-800 pb-6">
             <div>
               <h2 className="text-xl font-bold">Fase de Liga (36 Equipos)</h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Acierto exacto: <strong className="text-emerald-400">3 pts</strong> | Acierto de Zona: <strong className="text-yellow-400">1 pt</strong>
-              </p>
+              <p className="text-sm text-gray-400 mt-1">Acierto exacto: <strong className="text-emerald-400">3 pts</strong> | Acierto de Zona: <strong className="text-yellow-400">1 pt</strong></p>
             </div>
             
             <button 
               onClick={guardarTabla}
-              disabled={bloqueoActivo || guardando || loading}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-6 py-3 rounded-lg font-bold transition shadow-sm w-full md:w-auto"
+              disabled={bloqueoActivo || guardando || loading || tablaBloqueada}
+              className={`px-6 py-3 rounded-lg font-bold transition shadow-sm w-full md:w-auto text-white ${tablaBloqueada ? 'bg-gray-700 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-500'}`}
             >
-              {guardando ? "Guardando..." : "Guardar mi Tabla"}
+              {tablaBloqueada ? "✓ Tabla Confirmada" : guardando ? "Guardando..." : "Guardar mi Tabla (Definitivo)"}
             </button>
           </div>
 
@@ -159,14 +167,12 @@ export default function PosicionesPage() {
             <p className="text-center text-gray-400 py-10">Cargando equipos...</p>
           ) : (
             <div className="space-y-1">
-              {/* Iteramos del 1 al 36 */}
               {Array.from({ length: 36 }, (_, i) => i + 1).map((pos) => (
                 <div key={pos}>
                   {obtenerEtiquetaZona(pos)}
                   <div className={`flex items-center gap-4 p-2 rounded border-l-4 ${obtenerColorZona(pos)} bg-gray-950/50`}>
                     <div className="w-8 text-center font-black text-gray-400">{pos}°</div>
                     
-                    {/* Renderizamos el escudo si hay un equipo seleccionado */}
                     <div className="w-8 h-8 flex items-center justify-center shrink-0">
                       {inputs[pos] && equipos.find(e => e.id === inputs[pos])?.escudo_url ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
@@ -179,12 +185,11 @@ export default function PosicionesPage() {
                     <select
                       value={inputs[pos] || ""}
                       onChange={(e) => handleChange(pos, e.target.value)}
-                      disabled={bloqueoActivo}
-                      className="flex-1 bg-gray-900 border border-gray-700 text-white text-sm rounded-lg p-2.5 focus:border-blue-500 outline-none transition disabled:opacity-60"
+                      disabled={bloqueoActivo || tablaBloqueada}
+                      className="flex-1 bg-gray-900 border border-gray-700 text-white text-sm rounded-lg p-2.5 focus:border-blue-500 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">-- Seleccionar Equipo --</option>
                       {equipos.map((equipo) => {
-                        // Deshabilitamos el equipo en la lista SI ya fue elegido en OTRA posición
                         const estaSeleccionadoEnOtraPosicion = equiposSeleccionados.includes(equipo.id) && inputs[pos] !== equipo.id;
                         return (
                           <option key={equipo.id} value={equipo.id} disabled={estaSeleccionadoEnOtraPosicion}>

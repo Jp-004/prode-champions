@@ -1,85 +1,87 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../lib/supabase"; // Asegúrate de que la ruta coincida con donde creaste supabase.ts
+import { supabase } from "../../lib/supabase"; 
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  
+  // NUEVO: Estado para controlar el mensaje de éxito
+  const [exito, setExito] = useState<string | null>(null); 
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // Función para Iniciar Sesión
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError(null);
+    setExito(null);
+    setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
+      setLoading(false);
     } else {
-      router.push("/"); // Si sale bien, lo mandamos a la página principal
+      window.location.href = "/";
     }
-    setLoading(false);
   };
 
-  // Función para Registrarse
   const handleRegister = async () => {
-    setLoading(true);
     setError(null);
+    setExito(null);
+    setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
+    const { error } = await supabase.auth.signUp({ email, password });
     if (error) {
       setError(error.message);
     } else {
-      alert("¡Registro exitoso! Ya puedes iniciar sesión.");
+      // MAGIA: En lugar del "alert", encendemos el recuadro verde
+      setExito("¡Registro exitoso! Ya puedes iniciar sesión.");
     }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center text-white mb-6">
-          Prode Champions League 🏆
-        </h1>
-        
+    <div className="min-h-screen bg-gray-950 flex flex-col justify-center items-center p-4">
+      <div className="bg-gray-900 border border-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md">
+        <h1 className="text-3xl font-black text-center text-white mb-2">Prode Champions League</h1>
+        <div className="text-center text-4xl mb-6">🏆</div>
+
+        {/* Recuadro Rojo (Errores) */}
         {error && (
-          <div className="bg-red-500 text-white p-3 rounded mb-4 text-sm">
+          <div className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
             {error}
+          </div>
+        )}
+
+        {/* NUEVO: Recuadro Verde (Éxito) */}
+        {exito && (
+          <div className="bg-emerald-500/10 border border-emerald-500/50 text-emerald-400 px-4 py-3 rounded-lg mb-6 text-sm font-medium animate-in fade-in slide-in-from-top-2">
+            ✓ {exito}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-gray-300 mb-1">Correo Electrónico</label>
+            <label className="block text-gray-400 text-sm font-semibold mb-1">Correo Electrónico</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:border-blue-500 outline-none transition"
               required
             />
           </div>
-
           <div>
-            <label className="block text-gray-300 mb-1">Contraseña</label>
+            <label className="block text-gray-400 text-sm font-semibold mb-1">Contraseña</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-950 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:border-blue-500 outline-none transition"
               required
             />
           </div>
@@ -87,20 +89,20 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition"
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition disabled:opacity-50 mt-2"
           >
             {loading ? "Cargando..." : "Iniciar Sesión"}
           </button>
         </form>
 
-        <div className="mt-4 text-center">
-          <p className="text-gray-400">¿No tienes cuenta?</p>
+        <div className="mt-8 pt-6 border-t border-gray-800 text-center">
+          <p className="text-gray-400 text-sm mb-3">¿No tienes cuenta?</p>
           <button
             onClick={handleRegister}
             disabled={loading}
-            className="mt-2 w-full bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700 transition"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg transition disabled:opacity-50"
           >
-            Registrarse
+            {loading ? "Procesando..." : "Registrarse"}
           </button>
         </div>
       </div>
