@@ -356,43 +356,45 @@ export default function FixturePage() {
             {loading ? (
               <p className="text-center text-gray-400 py-6">Cargando tabla...</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left whitespace-nowrap border-collapse text-sm">
+              <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700">
+                {/* Agregamos min-w-[600px] para forzar el scroll en celulares y que no se aplaste */}
+                <table className="w-full min-w-[600px] text-left whitespace-nowrap border-collapse text-sm">
                   <thead>
                     <tr className="text-gray-400 border-b border-gray-800 text-xs uppercase tracking-wider">
-                      <th className="pb-3 w-10 text-center">Pos</th>
-                      <th className="pb-3 text-left">Equipo</th>
-                      <th className="pb-3 text-center w-8">J</th>
-                      <th className="pb-3 text-center w-8 text-emerald-400">G</th>
-                      <th className="pb-3 text-center w-8 text-gray-400">E</th>
-                      <th className="pb-3 text-center w-8 text-red-400">P</th>
-                      <th className="pb-3 text-center w-8">GF</th>
-                      <th className="pb-3 text-center w-8">GC</th>
-                      <th className="pb-3 text-center w-8">DG</th>
-                      <th className="pb-3 text-center w-10 font-bold text-white">PTS</th>
+                      {/* Agregamos px-3 y px-2 a todas las columnas para separarlas */}
+                      <th className="pb-3 px-3 w-10 text-center">Pos</th>
+                      <th className="pb-3 px-3 text-left min-w-[160px]">Equipo</th>
+                      <th className="pb-3 px-2 text-center w-8">J</th>
+                      <th className="pb-3 px-2 text-center w-8 text-emerald-400">G</th>
+                      <th className="pb-3 px-2 text-center w-8 text-gray-400">E</th>
+                      <th className="pb-3 px-2 text-center w-8 text-red-400">P</th>
+                      <th className="pb-3 px-2 text-center w-8">GF</th>
+                      <th className="pb-3 px-2 text-center w-8">GC</th>
+                      <th className="pb-3 px-2 text-center w-8">DG</th>
+                      <th className="pb-3 px-3 text-center w-10 font-bold text-white">PTS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800/60">
                     {equipos.map((equipo) => (
                       <tr key={equipo.id} className={`transition-colors ${obtenerColorFila(equipo.posicion_real_actual)}`}>
-                        <td className="py-2.5 font-bold text-white text-center">{equipo.posicion_real_actual}°</td>
-                        <td className="py-2.5 flex items-center gap-3">
+                        <td className="py-3 px-3 font-bold text-white text-center">{equipo.posicion_real_actual}°</td>
+                        <td className="py-3 px-3 flex items-center gap-3">
                           {equipo.escudo_url ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={equipo.escudo_url} alt={`Escudo de ${equipo.nombre}`} className="w-6 h-6 object-contain" />
+                            <img src={equipo.escudo_url} alt={`Escudo de ${equipo.nombre}`} className="w-6 h-6 object-contain shrink-0" />
                           ) : (
-                            <div className="w-6 h-6 bg-gray-800 rounded-full"></div>
+                            <div className="w-6 h-6 bg-gray-800 rounded-full shrink-0"></div>
                           )}
-                          <span className="font-semibold text-gray-200">{equipo.nombre}</span>
+                          <span className="font-semibold text-gray-200 truncate">{equipo.nombre}</span>
                         </td>
-                        <td className="py-2.5 text-center text-gray-300">{equipo.partidos_jugados}</td>
-                        <td className="py-2.5 text-center text-emerald-400 font-medium">{equipo.partidos_ganados}</td>
-                        <td className="py-2.5 text-center text-gray-400 font-medium">{equipo.partidos_empatados}</td>
-                        <td className="py-2.5 text-center text-red-400 font-medium">{equipo.partidos_perdidos}</td>
-                        <td className="py-2.5 text-center text-gray-400">{equipo.goles_favor}</td>
-                        <td className="py-2.5 text-center text-gray-400">{equipo.goles_contra}</td>
-                        <td className="py-2.5 text-center text-gray-400">{equipo.diferencia_goles}</td>
-                        <td className="py-2.5 text-center font-bold text-white text-base">{equipo.puntos}</td>
+                        <td className="py-3 px-2 text-center text-gray-300">{equipo.partidos_jugados}</td>
+                        <td className="py-3 px-2 text-center text-emerald-400 font-medium">{equipo.partidos_ganados}</td>
+                        <td className="py-3 px-2 text-center text-gray-400 font-medium">{equipo.partidos_empatados}</td>
+                        <td className="py-3 px-2 text-center text-red-400 font-medium">{equipo.partidos_perdidos}</td>
+                        <td className="py-3 px-2 text-center text-gray-400">{equipo.goles_favor}</td>
+                        <td className="py-3 px-2 text-center text-gray-400">{equipo.goles_contra}</td>
+                        <td className="py-3 px-2 text-center text-gray-400">{equipo.diferencia_goles}</td>
+                        <td className="py-3 px-3 text-center font-bold text-white text-base">{equipo.puntos}</td>
                       </tr>
                     ))}
                   </tbody>
