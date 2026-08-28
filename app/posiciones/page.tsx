@@ -132,7 +132,7 @@ const guardarTabla = async () => {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight">🎯 Arma tu Tabla Final</h1>
           <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 transition">
-            Volver al Panel
+            Volver
           </Link>
         </div>
 

@@ -25,7 +25,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'La API rechazó la conexión', detalles: datosAPI.message });
     }
 
-    // Extraemos la tabla total de la fase de liga
     // Extraemos la tabla total de la fase de liga definiendo la estructura esperada
     const tablaTotal = datosAPI.standings?.find((s: { type: string }) => s.type === 'TOTAL')?.table;
 
@@ -43,10 +42,14 @@ export async function GET(request: Request) {
         .from('equipos')
         .update({ 
           posicion_real_actual: equipoAPI.position,
+          partidos_jugados: equipoAPI.playedGames,
           puntos: equipoAPI.points,
           goles_favor: equipoAPI.goalsFor,
           goles_contra: equipoAPI.goalsAgainst,
-          diferencia_goles: equipoAPI.goalDifference
+          diferencia_goles: equipoAPI.goalDifference,
+          partidos_ganados: equipoAPI.won,
+          partidos_empatados: equipoAPI.draw,
+          partidos_perdidos: equipoAPI.lost,
         })
         .ilike('nombre', `%${equipoAPI.team.shortName}%`); 
     }

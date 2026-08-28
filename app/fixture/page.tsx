@@ -10,6 +10,10 @@ type Equipo = {
   nombre: string;
   escudo_url: string | null;
   posicion_real_actual: number;
+  partidos_jugados: number;
+  partidos_ganados: number;
+  partidos_empatados: number;
+  partidos_perdidos: number;
   puntos: number;
   goles_favor: number;
   goles_contra: number;
@@ -167,7 +171,7 @@ export default function FixturePage() {
   };
 
   const obtenerColorFila = (posicion: number) => {
-    if (posicion >= 1 && posicion <= 8) return "bg-green-500/10 border-l-4 border-green-500 hover:bg-green-500/20";
+    if (posicion >= 1 && posicion <= 8) return "bg-emerald-500/10 border-l-4 border-emerald-500 hover:bg-emerald-500/20";
     if (posicion >= 9 && posicion <= 24) return "bg-orange-500/10 border-l-4 border-orange-500 hover:bg-orange-500/20";
     return "bg-red-500/10 border-l-4 border-red-500 hover:bg-red-500/20";
   };
@@ -177,12 +181,10 @@ export default function FixturePage() {
     return new Date(fechaIso).toLocaleDateString('es-ES', opciones).replace(',', ' -');
   };
 
-  // Preparamos la lista de equipos en orden alfabético para los desplegables
   const equiposOrdenados = [...equipos].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8">
-      {/* Toast Notification */}
       {notificacion && (
         <div className="fixed top-5 right-5 z-50 animate-bounce">
           <div className={`px-5 py-3 rounded-lg shadow-xl font-medium border flex items-center gap-2 ${
@@ -198,11 +200,10 @@ export default function FixturePage() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight">⚽ Fixture y Posiciones</h1>
           <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 transition">
-            Volver al Panel
+            Volver
           </Link>
         </div>
 
-        {/* --- NUEVA SECCIÓN: CANDIDATOS --- */}
         <div className="bg-gray-900/90 p-5 md:p-6 rounded-xl border border-gray-800 shadow-sm mb-8">
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-5">
             <h2 className="text-xl font-bold text-gray-200 flex items-center gap-2">
@@ -253,7 +254,6 @@ export default function FixturePage() {
             </button>
           </div>
         </div>
-        {/* --------------------------------- */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Columna Izquierda: Partidos y Pronósticos */}
@@ -351,7 +351,6 @@ export default function FixturePage() {
           {/* Columna Derecha: Tabla de Posiciones */}
           <div className="lg:col-span-2 bg-gray-900/90 p-5 rounded-xl border border-gray-800 shadow-sm">
             <h2 className="text-lg font-bold mb-4 text-gray-200">Tabla Oficial</h2>
-            {/* El contenido de la tabla se mantiene idéntico */}
             {loading ? (
               <p className="text-center text-gray-400 py-6">Cargando tabla...</p>
             ) : (
@@ -359,12 +358,16 @@ export default function FixturePage() {
                 <table className="w-full text-left whitespace-nowrap border-collapse text-sm">
                   <thead>
                     <tr className="text-gray-400 border-b border-gray-800 text-xs uppercase tracking-wider">
-                      <th className="pb-3 w-12 text-center">Pos</th>
-                      <th className="pb-3">Equipo</th>
-                      <th className="pb-3 text-center w-12 font-bold text-gray-300">PTS</th>
-                      <th className="pb-3 text-center w-12">GF</th>
-                      <th className="pb-3 text-center w-12">GC</th>
-                      <th className="pb-3 text-center w-12">DG</th>
+                      <th className="pb-3 w-10 text-center">Pos</th>
+                      <th className="pb-3 text-left">Equipo</th>
+                      <th className="pb-3 text-center w-8">J</th>
+                      <th className="pb-3 text-center w-8 text-emerald-400">G</th>
+                      <th className="pb-3 text-center w-8 text-gray-400">E</th>
+                      <th className="pb-3 text-center w-8 text-red-400">P</th>
+                      <th className="pb-3 text-center w-8">GF</th>
+                      <th className="pb-3 text-center w-8">GC</th>
+                      <th className="pb-3 text-center w-8">DG</th>
+                      <th className="pb-3 text-center w-10 font-bold text-white">PTS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800/60">
@@ -380,10 +383,14 @@ export default function FixturePage() {
                           )}
                           <span className="font-semibold text-gray-200">{equipo.nombre}</span>
                         </td>
-                        <td className="py-2.5 text-center font-bold text-white">{equipo.puntos}</td>
+                        <td className="py-2.5 text-center text-gray-300">{equipo.partidos_jugados}</td>
+                        <td className="py-2.5 text-center text-emerald-400 font-medium">{equipo.partidos_ganados}</td>
+                        <td className="py-2.5 text-center text-gray-400 font-medium">{equipo.partidos_empatados}</td>
+                        <td className="py-2.5 text-center text-red-400 font-medium">{equipo.partidos_perdidos}</td>
                         <td className="py-2.5 text-center text-gray-400">{equipo.goles_favor}</td>
                         <td className="py-2.5 text-center text-gray-400">{equipo.goles_contra}</td>
                         <td className="py-2.5 text-center text-gray-400">{equipo.diferencia_goles}</td>
+                        <td className="py-2.5 text-center font-bold text-white text-base">{equipo.puntos}</td>
                       </tr>
                     ))}
                   </tbody>
