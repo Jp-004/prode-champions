@@ -53,7 +53,8 @@ export async function GET(request: Request) {
               estado: estadoBD,
               fecha_partido: partido.utcDate,
               goles_local: partido.score?.fullTime?.home ?? null,
-              goles_visitante: partido.score?.fullTime?.away ?? null
+              goles_visitante: partido.score?.fullTime?.away ?? null,
+              jornada: partido.matchday
             })
             .eq('id', partidoExistente.id);
             
@@ -69,7 +70,8 @@ export async function GET(request: Request) {
               fecha_partido: partido.utcDate,
               goles_local: partido.score?.fullTime?.home ?? null,
               goles_visitante: partido.score?.fullTime?.away ?? null,
-              fase: 'fase_liga' // Automáticamente le asignamos la primera fase
+              fase: 'fase_liga', // Automáticamente le asignamos la primera fase
+              jornada: partido.matchday
             });
             
           creados++;

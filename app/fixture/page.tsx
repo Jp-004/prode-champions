@@ -26,6 +26,7 @@ type Partido = {
   estado: string;
   goles_local: number | null;
   goles_visitante: number | null;
+  jornada?: number | null;
   local: { nombre: string; escudo_url: string | null };
   visitante: { nombre: string; escudo_url: string | null };
 };
@@ -40,8 +41,8 @@ export default function FixturePage() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [inputs, setInputs] = useState<Record<number, { local: number; visitante: number }>>({});
+  const [jornadaSeleccionada, setJornadaSeleccionada] = useState<number>(1);
   
-  // Nuevos estados para Campeón y Subcampeón
   const [campeonId, setCampeonId] = useState<string>("");
   const [subcampeonId, setSubcampeonId] = useState<string>("");
   const [guardandoCandidatos, setGuardandoCandidatos] = useState(false);
@@ -50,7 +51,6 @@ export default function FixturePage() {
   const [guardandoId, setGuardandoId] = useState<number | null>(null);
   const [notificacion, setNotificacion] = useState<Notificacion | null>(null);
 
-  // FECHA LÍMITE: 15 de Septiembre de 2026 a las 13:00 hs (Hora inicio Champions)
   const FECHA_LIMITE = new Date("2026-09-15T16:00:00Z");
   const bloqueoActivo = new Date() > FECHA_LIMITE;
 
@@ -75,7 +75,7 @@ export default function FixturePage() {
       const { data: dataPartidos } = await supabase
         .from("partidos")
         .select(`
-          id, fecha_partido, estado, goles_local, goles_visitante,
+          id, fecha_partido, estado, goles_local, goles_visitante, jornada,
           local:equipos!equipo_local_id(nombre, escudo_url),
           visitante:equipos!equipo_visitante_id(nombre, escudo_url)
         `)
@@ -84,7 +84,6 @@ export default function FixturePage() {
       if (dataPartidos) setPartidos(dataPartidos as unknown as Partido[]);
 
       if (session) {
-        // Traer predicciones de los partidos
         const { data: misPredicciones } = await supabase
           .from("predicciones")
           .select("*")
@@ -101,7 +100,6 @@ export default function FixturePage() {
           setInputs(prediccionesPrevias);
         }
 
-        // Traer elección de campeón y subcampeón del perfil
         const { data: miPerfil } = await supabase
           .from("perfiles")
           .select("campeon_id, subcampeon_id")
@@ -183,6 +181,14 @@ export default function FixturePage() {
 
   const equiposOrdenados = [...equipos].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
+  // Filtra los partidos de la fecha seleccionada
+  const partidosFiltrados = partidos.filter((p, index) => {
+    if (p.jornada) return p.jornada === jornadaSeleccionada;
+    // Respaldo en caso de que la columna jornada aún no tenga valor: 18 partidos por fecha
+    const fechaCalculada = Math.floor(index / 18) + 1;
+    return fechaCalculada === jornadaSeleccionada;
+  });
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8">
       {notificacion && (
@@ -258,19 +264,42 @@ export default function FixturePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          {/* Columna Izquierda: Partidos y Pronósticos */}
+          {/* Columna Izquierda: Partidos y Paginador de Fechas */}
           <div className="lg:col-span-1 bg-gray-900/90 p-5 rounded-xl border border-gray-800 shadow-sm">
-            <h2 className="text-lg font-bold mb-4 text-gray-200">Fecha 1</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-200">Partidos</h2>
+              <span className="text-xs bg-blue-600/20 text-blue-400 px-2.5 py-1 rounded-full font-bold border border-blue-500/30">
+                Fecha {jornadaSeleccionada}
+              </span>
+            </div>
+
+            {/* Pestañas de Fechas 1 a 8 */}
+            <div className="flex gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-thin scrollbar-thumb-gray-700">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => setJornadaSeleccionada(num)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                    jornadaSeleccionada === num
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                      : "bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white"
+                  }`}
+                >
+                  F{num}
+                </button>
+              ))}
+            </div>
             
             {loading ? (
               <p className="text-center text-gray-400 py-6">Cargando partidos...</p>
-            ) : partidos.length === 0 ? (
+            ) : partidosFiltrados.length === 0 ? (
               <div className="text-gray-400 text-center py-10 border border-dashed border-gray-700 rounded-lg">
-                Aún no hay partidos cargados.
+                No hay partidos para esta fecha.
               </div>
             ) : (
               <div className="space-y-4">
-                {partidos.map((partido) => {
+                {partidosFiltrados.map((partido) => {
                   const golesLoc = inputs[partido.id]?.local ?? 0;
                   const golesVis = inputs[partido.id]?.visitante ?? 0;
 
@@ -285,7 +314,6 @@ export default function FixturePage() {
                         <div className="flex flex-col items-center justify-center text-center">
                           <div className="w-10 h-10 mb-2 flex items-center justify-center">
                             {partido.local.escudo_url ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
                               <img src={partido.local.escudo_url} alt={partido.local.nombre} className="w-9 h-9 object-contain" />
                             ) : (
                               <div className="w-9 h-9 bg-gray-800 rounded-full"></div>
@@ -296,7 +324,7 @@ export default function FixturePage() {
                           </span>
                         </div>
 
-                        {/* Controles Verticales del Marcador */}
+                        {/* Controles de Marcador */}
                         <div className="flex flex-col items-center justify-center gap-3">
                           {partido.estado === 'pendiente' ? (
                             <>
@@ -332,7 +360,6 @@ export default function FixturePage() {
                         <div className="flex flex-col items-center justify-center text-center">
                           <div className="w-10 h-10 mb-2 flex items-center justify-center">
                             {partido.visitante.escudo_url ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
                               <img src={partido.visitante.escudo_url} alt={partido.visitante.nombre} className="w-9 h-9 object-contain" />
                             ) : (
                               <div className="w-9 h-9 bg-gray-800 rounded-full"></div>
@@ -357,11 +384,9 @@ export default function FixturePage() {
               <p className="text-center text-gray-400 py-6">Cargando tabla...</p>
             ) : (
               <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700">
-                {/* Agregamos min-w-[600px] para forzar el scroll en celulares y que no se aplaste */}
                 <table className="w-full min-w-[600px] text-left whitespace-nowrap border-collapse text-sm">
                   <thead>
                     <tr className="text-gray-400 border-b border-gray-800 text-xs uppercase tracking-wider">
-                      {/* Agregamos px-3 y px-2 a todas las columnas para separarlas */}
                       <th className="pb-3 px-3 w-10 text-center">Pos</th>
                       <th className="pb-3 px-3 text-left min-w-[160px]">Equipo</th>
                       <th className="pb-3 px-2 text-center w-8">J</th>
@@ -380,7 +405,6 @@ export default function FixturePage() {
                         <td className="py-3 px-3 font-bold text-white text-center">{equipo.posicion_real_actual}°</td>
                         <td className="py-3 px-3 flex items-center gap-3">
                           {equipo.escudo_url ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
                             <img src={equipo.escudo_url} alt={`Escudo de ${equipo.nombre}`} className="w-6 h-6 object-contain shrink-0" />
                           ) : (
                             <div className="w-6 h-6 bg-gray-800 rounded-full shrink-0"></div>
