@@ -10,7 +10,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // 1. Consultar el calendario de partidos (endpoint /matches)
     const respuesta = await fetch("https://api.football-data.org/v4/competitions/CL/matches", {
       method: 'GET',
       headers: {
@@ -24,15 +23,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'La API rechazó la conexión', detalles: datosAPI.message });
     }
 
-    // 2. Traer todos los equipos de la base de datos para cruzar sus IDs
     const { data: equiposDB } = await supabaseAdmin.from('equipos').select('id, nombre');
     if (!equiposDB) throw new Error("No se pudieron cargar los equipos de Supabase");
 
-    let procesados = 0;
+    let creados = 0;
+    let actualizados = 0;
 
-    // 3. Sincronizar resultados de los partidos en Supabase
     for (const partido of datosAPI.matches) {
-      // Buscar el equipo local y visitante en tu BD comparando el nombre corto
       const local = equiposDB.find(e => e.nombre.toLowerCase().includes(partido.homeTeam?.shortName?.toLowerCase()));
       const visitante = equiposDB.find(e => e.nombre.toLowerCase().includes(partido.awayTeam?.shortName?.toLowerCase()));
 
@@ -41,24 +38,48 @@ export async function GET(request: Request) {
         if (partido.status === 'IN_PLAY' || partido.status === 'PAUSED') estadoBD = 'en_juego';
         if (partido.status === 'FINISHED') estadoBD = 'finalizado';
 
-        // Actualizamos los goles y el estado guiándonos por los IDs de los equipos
-        await supabaseAdmin
+        // 1. Verificamos si el partido ya está en la base de datos
+        const { data: partidoExistente } = await supabaseAdmin
           .from('partidos')
-          .update({ 
-            estado: estadoBD,
-            fecha_partido: partido.utcDate,
-            goles_local: partido.score?.fullTime?.home ?? null,
-            goles_visitante: partido.score?.fullTime?.away ?? null
-          })
-          .match({ equipo_local_id: local.id, equipo_visitante_id: visitante.id });
+          .select('id')
+          .match({ equipo_local_id: local.id, equipo_visitante_id: visitante.id })
+          .maybeSingle();
 
-        procesados++;
+        if (partidoExistente) {
+          // 2. Si ya existe, ACTUALIZAMOS los goles y el estado
+          await supabaseAdmin
+            .from('partidos')
+            .update({ 
+              estado: estadoBD,
+              fecha_partido: partido.utcDate,
+              goles_local: partido.score?.fullTime?.home ?? null,
+              goles_visitante: partido.score?.fullTime?.away ?? null
+            })
+            .eq('id', partidoExistente.id);
+            
+          actualizados++;
+        } else {
+          // 3. Si no existe, CREAMOS el partido desde cero
+          await supabaseAdmin
+            .from('partidos')
+            .insert({
+              equipo_local_id: local.id,
+              equipo_visitante_id: visitante.id,
+              estado: estadoBD,
+              fecha_partido: partido.utcDate,
+              goles_local: partido.score?.fullTime?.home ?? null,
+              goles_visitante: partido.score?.fullTime?.away ?? null,
+              fase: 'fase_liga' // Automáticamente le asignamos la primera fase
+            });
+            
+          creados++;
+        }
       }
     }
 
     return NextResponse.json({ 
       success: true, 
-      message: `Se actualizaron ${procesados} partidos con éxito desde football-data.org` 
+      message: `Sincronización completa: ${creados} partidos nuevos creados y ${actualizados} actualizados.` 
     });
 
   } catch (error) {
