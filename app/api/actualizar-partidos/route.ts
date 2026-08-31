@@ -23,8 +23,8 @@ const traductorEquipos: Record<string, string[]> = {
   "milan": ["ac milan"],
   
   // --- LOS 5 NUEVOS REBELDES ---
-  "shakhtar": ["shakhtar donetsk", "fk shakhtar donetsk"],
-  "fc barcelona": ["fc barcelona"],
+  "fc barcelona": ["barcelona", "fc barcelona"],
+  "shakhtar": ["fk shakhtar donetsk", "shakhtar donetsk"],
   "manchester city": ["manchester city fc"],
   "manchester united": ["manchester united fc"],
   "aek atenas": ["pae aek", "aek"] 
