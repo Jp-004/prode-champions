@@ -14,15 +14,20 @@ const traductorEquipos: Record<string, string[]> = {
   "bayern munich": ["bayern munchen", "bayern"],
   "psg": ["paris saint-germain", "paris sg"],
   "sporting lisboa": ["sporting cp", "sporting"],
-  "shakhtar": ["shakhtar donetsk"],
   "aston villa": ["aston villa fc"],
   "inter": ["internazionale", "inter milan"],
   "bologna": ["bologna fc"],
   "rb leipzig": ["leipzig"],
   "sturm graz": ["sturm"],
   "salzburgo": ["salzburg", "red bull salzburg"],
-  "milan": ["ac milan"]
-  // Puedes agregar más aquí si la API sigue sin encontrar alguno
+  "milan": ["ac milan"],
+  
+  // --- LOS 5 NUEVOS REBELDES ---
+  "shakhtar": ["shakhtar donetsk", "fk shakhtar donetsk"],
+  "fc barcelona": ["fc barcelona"],
+  "manchester city": ["manchester city fc"],
+  "manchester united": ["manchester united fc"],
+  "aek atenas": ["pae aek", "aek"] 
 };
 
 export async function GET(request: Request) {
