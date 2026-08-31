@@ -1,44 +1,90 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 
+// 1. Función mágica para quitar tildes, mayúsculas y espacios extra
+const normalizar = (texto?: string) => {
+  if (!texto) return "";
+  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+};
+
+// 2. Diccionario de traducciones para los equipos complicados
+// A la izquierda pones TU nombre (normalizado) y a la derecha cómo lo llama la API
+const traductorEquipos: Record<string, string[]> = {
+  "estrella roja": ["crvena zvezda", "crvena"],
+  "bayern munich": ["bayern munchen", "bayern"],
+  "psg": ["paris saint-germain", "paris sg"],
+  "sporting lisboa": ["sporting cp", "sporting"],
+  "shakhtar": ["shakhtar donetsk"],
+  "aston villa": ["aston villa fc"],
+  "inter": ["internazionale", "inter milan"],
+  "bologna": ["bologna fc"],
+  "rb leipzig": ["leipzig"],
+  "sturm graz": ["sturm"],
+  "salzburgo": ["salzburg", "red bull salzburg"],
+  "milan": ["ac milan"]
+  // Puedes agregar más aquí si la API sigue sin encontrar alguno
+};
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const secret = url.searchParams.get('secret');
-    
+
     if (secret !== 'mi_contraseña_secreta_123') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const respuesta = await fetch("https://api.football-data.org/v4/competitions/CL/matches", {
       method: 'GET',
-      headers: {
-        "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN!
-      }
+      headers: { "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN! }
     });
-
     const datosAPI = await respuesta.json();
 
     if (datosAPI.errorCode || datosAPI.error) {
-      return NextResponse.json({ error: 'La API rechazó la conexión', detalles: datosAPI.message });
+      return NextResponse.json({ error: 'La API falló', detalles: datosAPI.message });
     }
 
     const { data: equiposDB } = await supabaseAdmin.from('equipos').select('id, nombre');
-    if (!equiposDB) throw new Error("No se pudieron cargar los equipos de Supabase");
+    if (!equiposDB) throw new Error("Error al cargar Supabase");
 
     let creados = 0;
     let actualizados = 0;
+    const errores = new Set<string>();
 
-    for (const partido of datosAPI.matches) {
-      const local = equiposDB.find(e => e.nombre.toLowerCase().includes(partido.homeTeam?.shortName?.toLowerCase()));
-      const visitante = equiposDB.find(e => e.nombre.toLowerCase().includes(partido.awayTeam?.shortName?.toLowerCase()));
+    // Solo procesamos los partidos de la Fase de Liga (Jornadas 1 a 8)
+    const partidosFaseLiga = datosAPI.matches.filter((m: { matchday: number }) => m.matchday >= 1 && m.matchday <= 8);
+
+    for (const partido of partidosFaseLiga) {
+      const nomLocAPI = normalizar(partido.homeTeam?.shortName || partido.homeTeam?.name);
+      const nomVisAPI = normalizar(partido.awayTeam?.shortName || partido.awayTeam?.name);
+
+      // Lógica de búsqueda ultra-precisa
+      const buscarEquipo = (nombreAPI: string, nombreOriginalAPI: string) => {
+        const encontrado = equiposDB.find(e => {
+          const nomDB = normalizar(e.nombre);
+          
+          // A) Coincidencia exacta o que una palabra contenga a la otra
+          if (nomDB.includes(nombreAPI) || nombreAPI.includes(nomDB)) return true;
+          
+          // B) Búsqueda en nuestro diccionario de traducciones
+          const alias = traductorEquipos[nomDB] || [];
+          if (alias.some(a => nombreAPI.includes(a) || a.includes(nombreAPI))) return true;
+
+          return false;
+        });
+
+        if (!encontrado) errores.add(nombreOriginalAPI); // Lo anota en la "lista negra"
+        return encontrado;
+      };
+
+      const local = buscarEquipo(nomLocAPI, partido.homeTeam?.name);
+      const visitante = buscarEquipo(nomVisAPI, partido.awayTeam?.name);
 
       if (local && visitante) {
         let estadoBD = 'pendiente';
         if (partido.status === 'IN_PLAY' || partido.status === 'PAUSED') estadoBD = 'en_juego';
         if (partido.status === 'FINISHED') estadoBD = 'finalizado';
 
-        // 1. Verificamos si el partido ya está en la base de datos
         const { data: partidoExistente } = await supabaseAdmin
           .from('partidos')
           .select('id')
@@ -46,21 +92,18 @@ export async function GET(request: Request) {
           .maybeSingle();
 
         if (partidoExistente) {
-          // 2. Si ya existe, ACTUALIZAMOS los goles y el estado
           await supabaseAdmin
             .from('partidos')
-            .update({ 
+            .update({
               estado: estadoBD,
               fecha_partido: partido.utcDate,
               goles_local: partido.score?.fullTime?.home ?? null,
               goles_visitante: partido.score?.fullTime?.away ?? null,
-              jornada: partido.matchday
+              jornada: partido.matchday // Asigna la fecha a los que ya estaban creados
             })
             .eq('id', partidoExistente.id);
-            
           actualizados++;
         } else {
-          // 3. Si no existe, CREAMOS el partido desde cero
           await supabaseAdmin
             .from('partidos')
             .insert({
@@ -70,22 +113,23 @@ export async function GET(request: Request) {
               fecha_partido: partido.utcDate,
               goles_local: partido.score?.fullTime?.home ?? null,
               goles_visitante: partido.score?.fullTime?.away ?? null,
-              fase: 'fase_liga', // Automáticamente le asignamos la primera fase
-              jornada: partido.matchday
+              fase: 'fase_liga',
+              jornada: partido.matchday // Asigna la fecha a los nuevos
             });
-            
           creados++;
         }
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Sincronización completa: ${creados} partidos nuevos creados y ${actualizados} actualizados.` 
-    });
+    return NextResponse.json({
+       success: true,
+       message: `Proceso terminado. Nuevos: ${creados} | Actualizados: ${actualizados}`,
+       total_en_base_de_datos_ahora: creados + actualizados + 80, // 80 es lo que ya tenías
+       equipos_sin_coincidencia: Array.from(errores) // ¡Esta es la clave!
+     });
 
   } catch (error) {
-    console.error("Error en la sincronización de partidos:", error);
-    return NextResponse.json({ error: 'Fallo la sincronización' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Fallo general' }, { status: 500 });
   }
 }

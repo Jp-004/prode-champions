@@ -16,23 +16,32 @@ type Perfil = {
   subcampeon?: EquipoInfo;
 };
 
-// Modificamos el tipo para incluir los puntos calculados
 type EquipoTabla = { pos: number; nombre: string; escudo: string | null; puntos: number };
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [ranking, setRanking] = useState<Perfil[]>([]);
   const [loading, setLoading] = useState(true);
+  const [miTablaGuardada, setMiTablaGuardada] = useState(false);
 
   const [perfilSeleccionado, setPerfilSeleccionado] = useState<(Perfil & { posicion: number }) | null>(null);
-  
   const [tablaModal, setTablaModal] = useState<EquipoTabla[]>([]);
   const [cargandoTabla, setCargandoTabla] = useState(false);
 
   useEffect(() => {
     const fetchDatos = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) setUser(session.user);
+      if (session) {
+        setUser(session.user);
+        
+        // Verificamos si el usuario actual ya armó su propia tabla
+        const { count } = await supabase
+          .from("predicciones_posiciones")
+          .select("*", { count: 'exact', head: true })
+          .eq("usuario_id", session.user.id);
+        
+        setMiTablaGuardada((count ?? 0) > 0);
+      }
 
       const { data: dataRanking, error } = await supabase
         .from("perfiles")
@@ -63,7 +72,6 @@ export default function Home() {
     setTablaModal([]);
     setCargandoTabla(true);
 
-    // Agregamos 'posicion_real_actual' a la consulta para poder calcular los puntos
     const { data, error } = await supabase
       .from("predicciones_posiciones")
       .select("posicion_predicha, equipo:equipos(nombre, escudo_url, posicion_real_actual)")
@@ -72,14 +80,10 @@ export default function Home() {
 
     if (!error && data) {
       type EquipoData = { nombre: string; escudo_url: string | null; posicion_real_actual: number };
-      type PrediccionQuery = {
-        posicion_predicha: number;
-        equipo: EquipoData | EquipoData[]; 
-      };
+      type PrediccionQuery = { posicion_predicha: number; equipo: EquipoData | EquipoData[]; };
 
       const predicciones = data as unknown as PrediccionQuery[];
 
-      // Función auxiliar para saber en qué zona cayó un equipo
       const obtenerZona = (pos: number) => {
         if (pos >= 1 && pos <= 8) return 1;
         if (pos >= 9 && pos <= 24) return 2;
@@ -88,47 +92,31 @@ export default function Home() {
 
       const formateada = predicciones.map((d) => {
         const equipoData = Array.isArray(d.equipo) ? d.equipo[0] : d.equipo;
-        
         const posPredicha = d.posicion_predicha;
         const posReal = equipoData?.posicion_real_actual || 0;
         
-        // Calculamos los puntos en vivo
         let puntosCalc = 0;
         if (posReal > 0) {
-          if (posPredicha === posReal) puntosCalc = 3; // Acierto exacto
-          else if (obtenerZona(posPredicha) === obtenerZona(posReal)) puntosCalc = 1; // Acierto de zona
+          if (posPredicha === posReal) puntosCalc = 3;
+          else if (obtenerZona(posPredicha) === obtenerZona(posReal)) puntosCalc = 1;
         }
 
-        return {
-          pos: posPredicha,
-          nombre: equipoData?.nombre || "Sin equipo",
-          escudo: equipoData?.escudo_url || null,
-          puntos: puntosCalc
-        };
+        return { pos: posPredicha, nombre: equipoData?.nombre || "Sin equipo", escudo: equipoData?.escudo_url || null, puntos: puntosCalc };
       });
       
       setTablaModal(formateada);
     }
-    
     setCargandoTabla(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8 relative">
       <div className="max-w-4xl mx-auto">
-        
-        {/* Encabezado Principal */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 bg-gray-900/90 p-6 rounded-xl border border-gray-800 shadow-sm">
-          
-          {/* NUEVO: Contenedor flex para agrupar el logo y el texto */}
           <div className="flex items-center gap-4 md:gap-5">
             <div className="shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src="/logo.png" 
-                alt="Champions League" 
-                className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] hover:scale-105 transition-transform" 
-              />
+              <img src="/logo.png" alt="Champions League" className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] hover:scale-105 transition-transform" />
             </div>
             <div>
               <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
@@ -140,7 +128,6 @@ export default function Home() {
             </div>
           </div>
           
-          {/* Botones de navegación */}
           <div className="flex flex-wrap justify-end gap-3 mt-4 md:mt-0">
             {user ? (
               <>
@@ -188,7 +175,6 @@ export default function Home() {
                   {ranking.map((perfil, index) => {
                     const posicion = index + 1;
                     const esUsuarioActual = user?.id === perfil.id;
-                    
                     let colorPosicion = "text-gray-400 font-bold";
                     if (posicion === 1) colorPosicion = "text-yellow-400 font-black text-lg";
                     else if (posicion === 2) colorPosicion = "text-gray-300 font-black text-lg";
@@ -240,86 +226,92 @@ export default function Home() {
             </div>
 
             <div className="p-6 space-y-5 overflow-y-auto">
-              
-              <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 flex justify-between items-center">
-                <span className="text-gray-400 text-sm font-semibold">Resultados Exactos</span>
-                <span className="text-emerald-400 font-black text-xl">{perfilSeleccionado.aciertos_exactos}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 text-center flex flex-col items-center justify-center">
-                  <span className="text-xs text-yellow-500 font-bold uppercase tracking-wider mb-2">Campeón</span>
-                  {perfilSeleccionado.campeon ? (
-                    <>
-                      {perfilSeleccionado.campeon.escudo_url ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={perfilSeleccionado.campeon.escudo_url} alt="Campeón" className="w-10 h-10 object-contain mb-2 drop-shadow-md" />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-800 rounded-full mb-2"></div>
-                      )}
-                      <span className="text-sm font-bold text-gray-200 line-clamp-1">{perfilSeleccionado.campeon.nombre}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-500 text-sm italic py-2">Aún no elige</span>
-                  )}
+              {/* LÓGICA ANTI-COPIA AQUI */}
+              {!miTablaGuardada && perfilSeleccionado.id !== user?.id ? (
+                <div className="bg-gray-950 p-6 rounded-xl border border-gray-800 text-center flex flex-col items-center justify-center py-10">
+                  <span className="text-4xl mb-3">🔒</span>
+                  <h4 className="text-gray-200 font-bold mb-2">Secreto de Estado</h4>
+                  <p className="text-sm text-gray-500">Debes guardar tu propia tabla en la sección <strong>Armar Tabla</strong> para poder espiar los pronósticos de {perfilSeleccionado.nombre}.</p>
                 </div>
+              ) : (
+                <>
+                  <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 flex justify-between items-center">
+                    <span className="text-gray-400 text-sm font-semibold">Resultados Exactos (3 pts)</span>
+                    <span className="text-emerald-400 font-black text-xl">{perfilSeleccionado.aciertos_exactos}</span>
+                  </div>
 
-                <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 text-center flex flex-col items-center justify-center">
-                  <span className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Subcampeón</span>
-                  {perfilSeleccionado.subcampeon ? (
-                    <>
-                      {perfilSeleccionado.subcampeon.escudo_url ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={perfilSeleccionado.subcampeon.escudo_url} alt="Subcampeón" className="w-10 h-10 object-contain mb-2 drop-shadow-md" />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-800 rounded-full mb-2"></div>
-                      )}
-                      <span className="text-sm font-bold text-gray-200 line-clamp-1">{perfilSeleccionado.subcampeon.nombre}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-500 text-sm italic py-2">Aún no elige</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-2 border-t border-gray-800 pt-5">
-                <h4 className="text-sm font-bold text-gray-300 mb-3 flex justify-between items-center">
-                  <span>Predicción Fase Liga</span>
-                  {tablaModal.length > 0 && <span className="text-xs font-normal text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">Tabla Guardada</span>}
-                </h4>
-                
-                {cargandoTabla ? (
-                  <div className="flex justify-center py-4"><span className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span></div>
-                ) : tablaModal.length > 0 ? (
-                  <div className="max-h-48 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-gray-700">
-                    {tablaModal.map(t => (
-                      // MODIFICADO: Agregamos justify-between para colocar los puntos a la derecha
-                      <div key={t.pos} className="flex items-center justify-between bg-gray-950 p-2 rounded border border-gray-800/60">
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className={`w-5 font-black ${t.pos <= 8 ? 'text-emerald-500' : t.pos <= 24 ? 'text-orange-400' : 'text-red-500'}`}>{t.pos}°</span>
-                          {t.escudo ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 text-center flex flex-col items-center justify-center">
+                      <span className="text-xs text-yellow-500 font-bold uppercase tracking-wider mb-2">Campeón</span>
+                      {perfilSeleccionado.campeon ? (
+                        <>
+                          {perfilSeleccionado.campeon.escudo_url ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={t.escudo} className="w-5 h-5 object-contain" alt="escudo" />
+                            <img src={perfilSeleccionado.campeon.escudo_url} alt="Campeón" className="w-10 h-10 object-contain mb-2 drop-shadow-md" />
                           ) : (
-                            <div className="w-5 h-5 bg-gray-800 rounded-full"></div>
+                            <div className="w-10 h-10 bg-gray-800 rounded-full mb-2"></div>
                           )}
-                          <span className="text-gray-200 font-medium truncate">{t.nombre}</span>
-                        </div>
-                        
-                        {/* NUEVO: Puntuación con colores dinámicos */}
-                        <div className={`text-sm font-black pr-2 ${t.puntos === 3 ? 'text-emerald-400' : t.puntos === 1 ? 'text-yellow-400' : 'text-gray-600'}`}>
-                          {t.puntos}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-950 p-3 rounded-lg border border-gray-800 text-center">
-                    <p className="text-sm text-gray-500 italic">Aún no completó su tabla.</p>
-                  </div>
-                )}
-              </div>
+                          <span className="text-sm font-bold text-gray-200 line-clamp-1">{perfilSeleccionado.campeon.nombre}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-500 text-sm italic py-2">Aún no elige</span>
+                      )}
+                    </div>
 
+                    <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 text-center flex flex-col items-center justify-center">
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Subcampeón</span>
+                      {perfilSeleccionado.subcampeon ? (
+                        <>
+                          {perfilSeleccionado.subcampeon.escudo_url ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={perfilSeleccionado.subcampeon.escudo_url} alt="Subcampeón" className="w-10 h-10 object-contain mb-2 drop-shadow-md" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-800 rounded-full mb-2"></div>
+                          )}
+                          <span className="text-sm font-bold text-gray-200 line-clamp-1">{perfilSeleccionado.subcampeon.nombre}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-500 text-sm italic py-2">Aún no elige</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-2 border-t border-gray-800 pt-5">
+                    <h4 className="text-sm font-bold text-gray-300 mb-3 flex justify-between items-center">
+                      <span>Predicción Fase Liga</span>
+                      {tablaModal.length > 0 && <span className="text-xs font-normal text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">Tabla Guardada</span>}
+                    </h4>
+                    
+                    {cargandoTabla ? (
+                      <div className="flex justify-center py-4"><span className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span></div>
+                    ) : tablaModal.length > 0 ? (
+                      <div className="max-h-48 overflow-y-auto pr-2 space-y-1.5 scrollbar-thin scrollbar-thumb-gray-700">
+                        {tablaModal.map(t => (
+                          <div key={t.pos} className="flex items-center justify-between bg-gray-950 p-2 rounded border border-gray-800/60">
+                            <div className="flex items-center gap-3 text-xs">
+                              <span className={`w-5 font-black ${t.pos <= 8 ? 'text-emerald-500' : t.pos <= 24 ? 'text-orange-400' : 'text-red-500'}`}>{t.pos}°</span>
+                              {t.escudo ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img src={t.escudo} className="w-5 h-5 object-contain" alt="escudo" />
+                              ) : (
+                                <div className="w-5 h-5 bg-gray-800 rounded-full"></div>
+                              )}
+                              <span className="text-gray-200 font-medium truncate">{t.nombre}</span>
+                            </div>
+                            <div className={`text-sm font-black pr-2 ${t.puntos === 3 ? 'text-emerald-400' : t.puntos === 1 ? 'text-yellow-400' : 'text-gray-600'}`}>
+                              {t.puntos}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-gray-950 p-3 rounded-lg border border-gray-800 text-center">
+                        <p className="text-sm text-gray-500 italic">Aún no completó su tabla.</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
