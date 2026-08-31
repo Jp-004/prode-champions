@@ -1,29 +1,36 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 
+// Mejoramos el normalizador para quitar puntos, tildes, comas y dejar solo texto limpio
 const normalizar = (texto?: string) => {
   if (!texto) return "";
-  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return texto.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Quita tildes (y la cedilla de Barça)
+    .replace(/[^a-zA-Z0-9\s]/g, "") // Quita símbolos raros
+    .toLowerCase()
+    .trim();
 };
 
-const traductorEquipos: Record<string, string[]> = {
-  "estrella roja": ["crvena zvezda", "crvena"],
-  "bayern munich": ["bayern munchen", "bayern"],
-  "psg": ["paris saint-germain", "paris sg"],
-  "sporting lisboa": ["sporting cp", "sporting"],
-  "aston villa": ["aston villa fc"],
-  "inter": ["internazionale", "inter milan"],
-  "bologna": ["bologna fc"],
-  "rb leipzig": ["leipzig"],
-  "sturm graz": ["sturm"],
-  "salzburgo": ["salzburg", "red bull salzburg"],
-  "milan": ["ac milan"],
-  "fc barcelona": ["barcelona", "barca", "fc barcelona"],
-  "shakhtar": ["fk shakhtar donetsk", "shakhtar donetsk"],
-  "manchester city": ["manchester city fc", "man city"],
-  "manchester united": ["manchester united fc", "man united", "man utd"],
-  "aek atenas": ["pae aek", "aek"] 
-};
+// LA NUEVA MAGIA: "Familias de Equipos" (Sin importar quién sea quién, si coinciden en la familia, se unen)
+const familiasEquipos = [
+  ["estrella roja", "crvena zvezda", "crvena"],
+  ["bayern munich", "bayern munchen", "bayern"],
+  ["psg", "paris saintgermain", "paris sg", "paris saint germain"],
+  ["sporting lisboa", "sporting cp", "sporting"],
+  ["aston villa", "aston villa fc"],
+  ["inter", "internazionale", "inter milan"],
+  ["bologna", "bologna fc"],
+  ["rb leipzig", "leipzig"],
+  ["sturm graz", "sturm"],
+  ["salzburgo", "salzburg", "red bull salzburg"],
+  ["milan", "ac milan"],
+  
+  // Los 4 equipos reparados con todas sus variantes posibles
+  ["barcelona", "fc barcelona", "barca"], 
+  ["shakhtar", "shakhtar donetsk", "fk shakhtar donetsk", "shaktar"], 
+  ["manchester city", "manchester city fc", "man city", "city"], 
+  ["manchester united", "manchester united fc", "man united", "man utd"]
+];
 
 export async function GET(request: Request) {
   try {
@@ -50,18 +57,11 @@ export async function GET(request: Request) {
     let creados = 0;
     let actualizados = 0;
     const errores = new Set<string>();
-    
-    // NUEVO: Lista para recolectar cómo escribe la API los nombres
-    const nombresAPI = new Set<string>(); 
 
     const partidosFaseLiga = datosAPI.matches.filter((m: { matchday: number }) => m.matchday >= 1 && m.matchday <= 8);
 
     for (const partido of partidosFaseLiga) {
       
-      // Guardamos el "molde" que envía la API para mostrártelo
-      if (partido.homeTeam?.name) nombresAPI.add(`Largo: ${partido.homeTeam.name} | Corto: ${partido.homeTeam.shortName}`);
-      if (partido.awayTeam?.name) nombresAPI.add(`Largo: ${partido.awayTeam.name} | Corto: ${partido.awayTeam.shortName}`);
-
       const buscarEquipo = (equipoAPI: { shortName?: string; name?: string }) => {
         const nomCorto = normalizar(equipoAPI?.shortName);
         const nomLargo = normalizar(equipoAPI?.name);
@@ -69,12 +69,22 @@ export async function GET(request: Request) {
         const encontrado = equiposDB.find(e => {
           const nomDB = normalizar(e.nombre);
           
-          if (nomDB.includes(nomCorto) || nomCorto.includes(nomDB)) return true;
-          if (nomDB.includes(nomLargo) || nomLargo.includes(nomDB)) return true;
+          // 1. Si son exactamente iguales o se contienen directamente
+          if (nomDB === nomCorto || nomDB === nomLargo) return true;
+          if (nomCorto && nomDB.includes(nomCorto)) return true;
+          if (nomLargo && nomDB.includes(nomLargo)) return true;
+          if (nomCorto && nomCorto.includes(nomDB)) return true;
+          if (nomLargo && nomLargo.includes(nomDB)) return true;
           
-          const alias = traductorEquipos[nomDB] || [];
-          if (alias.some(a => nomCorto.includes(a) || a.includes(nomCorto) || nomLargo.includes(a) || a.includes(nomLargo))) {
-            return true;
+          // 2. Si pertenecen a la misma "Familia"
+          for (const familia of familiasEquipos) {
+            const dbEnFamilia = familia.some(miembro => nomDB.includes(miembro) || miembro.includes(nomDB));
+            const apiEnFamilia = familia.some(miembro => 
+              (nomCorto && (nomCorto.includes(miembro) || miembro.includes(nomCorto))) || 
+              (nomLargo && (nomLargo.includes(miembro) || miembro.includes(nomLargo)))
+            );
+            
+            if (dbEnFamilia && apiEnFamilia) return true;
           }
 
           return false;
@@ -131,11 +141,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
        success: true,
        message: `Proceso terminado. Nuevos: ${creados} | Actualizados: ${actualizados}`,
-       equipos_sin_coincidencia: Array.from(errores),
-       
-       // --- EL DIAGNÓSTICO ESTRELLA ---
-       DIAGNOSTICO_TU_BASE_DE_DATOS: equiposDB.map(e => e.nombre).sort(),
-       DIAGNOSTICO_LA_API_MANDA: Array.from(nombresAPI).sort()
+       equipos_sin_coincidencia: Array.from(errores)
      });
 
   } catch (error) {
