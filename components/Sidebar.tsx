@@ -10,6 +10,7 @@ import {
   TableProperties, 
   ChevronRight, 
   X,
+  BookOpen,
   LogOut
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ export default function Sidebar({
     { nombre: "Armar Tabla", ruta: "/posiciones", Icono: ListOrdered },
     { nombre: "Tabla Oficial", ruta: "/tabla", Icono: TableProperties },
     { nombre: "Cuadro Final", ruta: "/cuadro", Icono: Trophy },
+    { nombre: "Reglas y Formato", ruta: "/reglas", Icono: BookOpen },
   ];
 
   const handleLogout = async () => {

@@ -102,7 +102,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {!isHome && (
             <div className="hidden md:block absolute top-6 right-8 z-20">
               <Link href="/" className="flex items-center gap-2 bg-gray-800/80 hover:bg-gray-700 backdrop-blur-md px-4 py-2.5 rounded-lg text-sm font-bold border border-gray-700 transition shadow-sm text-gray-300 hover:text-white">
-                <ArrowLeft className="w-4 h-4" strokeWidth={2.5} /> Volver al Panel
+                <ArrowLeft className="w-4 h-4" strokeWidth={2.5} /> Volver
               </Link>
             </div>
           )}
