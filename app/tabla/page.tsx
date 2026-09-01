@@ -48,22 +48,19 @@ export default function TablaOficialPage() {
       <div className="max-w-6xl mx-auto">
         {/* Encabezado Responsivo */}
         <div className="flex justify-between items-start md:items-center mb-5 md:mb-8">
-          <div className="pl-12 md:pl-0">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center shrink-0">
-                <TableProperties className="w-4 h-4 md:w-6 md:h-6 text-purple-400" strokeWidth={2.5} />
+          <div className="mb-6 md:mb-10 mt-2 md:mt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center shrink-0">
+                <TableProperties className="w-6 h-6 md:w-7 md:h-7 text-purple-400" strokeWidth={2.5} />
               </div>
-              <h1 className="text-xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 leading-tight">
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 leading-tight">
                 Tabla Oficial
               </h1>
             </div>
-            <p className="text-gray-400 mt-1 md:mt-2 text-xs md:text-sm pl-10 md:pl-[52px]">
+            <p className="text-gray-400 mt-2 text-sm pl-[52px] md:pl-[60px]">
               Fase de Liga de la Champions League
             </p>
           </div>
-          <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg text-xs md:text-sm font-bold border border-gray-700 transition shadow-sm shrink-0 mt-1 md:mt-0">
-            Volver
-          </Link>
         </div>
 
         {/* Contenedor de la Tabla */}

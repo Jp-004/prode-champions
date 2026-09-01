@@ -103,18 +103,15 @@ export default function CuadroPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8">
       <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8 mt-2 md:mt-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-600/20 border border-amber-500/30 flex items-center justify-center">
-              <Trophy className="w-6 h-6 text-amber-400" strokeWidth={2.5} />
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-amber-600/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <Trophy className="w-6 h-6 md:w-7 md:h-7 text-amber-400" strokeWidth={2.5} />
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 leading-tight">
               Cuadro Final
             </h1>
           </div>
-          <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold border border-gray-700 transition shadow-sm">
-            Volver
-          </Link>
         </div>
 
         {loading ? (
