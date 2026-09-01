@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase";
@@ -10,14 +9,23 @@ import {
   Trophy, 
   TableProperties, 
   ChevronRight, 
-  Menu, 
   X,
   LogOut
 } from "lucide-react";
 
-export default function Sidebar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
+interface SidebarProps {
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
+  isExpanded: boolean;
+  setIsExpanded: (expanded: boolean) => void;
+}
+
+export default function Sidebar({
+  mobileOpen,
+  setMobileOpen,
+  isExpanded,
+  setIsExpanded,
+}: SidebarProps) {
   const pathname = usePathname();
 
   const menuItems = [
@@ -35,15 +43,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Botón flotante para celular */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-40 bg-gray-900/90 backdrop-blur-md p-2.5 rounded-xl border border-gray-700 shadow-xl text-white hover:bg-gray-800 transition"
-        aria-label="Abrir menú"
-      >
-        <Menu className="w-5 h-5 text-gray-200" strokeWidth={2.5} />
-      </button>
-
       {/* Backdrop oscuro para celular */}
       {mobileOpen && (
         <div
@@ -59,18 +58,19 @@ export default function Sidebar() {
         } ${isExpanded ? "md:w-64" : "md:w-[84px]"}`}
       >
         {/* Cabecera del menú */}
-        <div className="p-4 flex items-center justify-between border-b border-gray-800/60 min-h-[72px]">
+        <div className="p-4 flex items-center justify-between border-b border-gray-800/60 min-h-[65px]">
           <div className={`overflow-hidden transition-all duration-300 ${!isExpanded ? "md:w-0 md:opacity-0" : "w-auto opacity-100"}`}>
             <div className="flex items-center gap-2 pl-2">
-               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                 <Trophy className="w-4 h-4 text-white" strokeWidth={2.5} />
-               </div>
-               <h2 className="text-lg font-black tracking-tight text-white whitespace-nowrap">
-                 Prode UCL
-               </h2>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
+                <Trophy className="w-4 h-4 text-white" strokeWidth={2.5} />
+              </div>
+              <h2 className="text-lg font-black tracking-tight text-white whitespace-nowrap">
+                Prode UCL
+              </h2>
             </div>
           </div>
 
+          {/* Botón de alternar ancho en PC */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition border border-gray-700 mx-auto group"
@@ -82,6 +82,7 @@ export default function Sidebar() {
             />
           </button>
 
+          {/* Botón de cerrar en Celular */}
           <button
             onClick={() => setMobileOpen(false)}
             className="md:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition"

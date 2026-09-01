@@ -95,7 +95,6 @@ export default function SelectorEquipo({
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar equipo..."
               className="w-full bg-gray-950 border border-gray-700 text-xs text-white rounded-md px-2.5 py-1.5 focus:border-blue-500 outline-none"
-              autoFocus
             />
           </div>
 
