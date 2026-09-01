@@ -75,21 +75,28 @@ export default function ReglasPage() {
           <div className="bg-gray-900/80 p-6 rounded-2xl border border-gray-800 shadow-sm">
             <h2 className="text-xl font-bold text-gray-200 flex items-center gap-2 mb-4">
               <Trophy className="w-5 h-5 text-amber-400" />
-              Puntos por Partido
+              Puntos por Partido (Fixture)
             </h2>
             <ul className="space-y-3">
               <li className="flex gap-4 items-start bg-gray-950 p-3.5 rounded-xl border border-gray-800">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-black text-emerald-400 shrink-0">+3</div>
                 <div>
                   <h4 className="font-bold text-sm text-gray-200">Resultado Exacto (Pleno)</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Acertaste el marcador exacto del partido.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Acertaste el marcador exacto de ambos clubes (ej. pronosticaste 2-1 y finalizó 2-1).</p>
                 </div>
               </li>
               <li className="flex gap-4 items-start bg-gray-950 p-3.5 rounded-xl border border-gray-800">
                 <div className="w-10 h-10 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center font-black text-yellow-400 shrink-0">+1</div>
                 <div>
                   <h4 className="font-bold text-sm text-gray-200">Tendencia (Ganador o Empate)</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Acertaste qué club ganó o si hubo empate, sin dar con los goles exactos.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Acertaste qué club ganó o si hubo empate, sin dar con los goles exactos (ej. pusiste 1-0 y fue 3-1).</p>
+                </div>
+              </li>
+              <li className="flex gap-4 items-start bg-gray-950 p-3.5 rounded-xl border border-gray-800">
+                <div className="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center font-black text-red-400 shrink-0">0</div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-200">Pronóstico Vacío u Omitido</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">Si olvidas cargar los goles de un encuentro (los marcadores figuran en -), tu puntaje para ese partido será de cero automáticamente.</p>
                 </div>
               </li>
             </ul>

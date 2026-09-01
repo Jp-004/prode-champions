@@ -81,9 +81,11 @@ export default function FixturePage() {
     });
   };
 
-  const guardarPrediccion = async (partidoId: number) => {
+const guardarPrediccion = async (partidoId: number) => {
     if (!user) return mostrarNotificacion("Debes iniciar sesión para jugar.", "error");
-    const prediccion = inputs[partidoId] ?? { local: 0, visitante: 0 };
+    const prediccion = inputs[partidoId];
+    if (!prediccion) return mostrarNotificacion("Ajusta los goles antes de guardar.", "error"); // Validación extra
+
     setGuardandoId(partidoId);
     
     const { error } = await supabase.from("predicciones").upsert({
@@ -221,8 +223,11 @@ export default function FixturePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {partidosFiltrados.map((partido) => {
-                const golesLoc = inputs[partido.id]?.local ?? 0;
-                const golesVis = inputs[partido.id]?.visitante ?? 0;
+                // Si no hay input cargado, será undefined
+                const partidoPred = inputs[partido.id];
+                const displayLoc = partidoPred !== undefined ? partidoPred.local : "-";
+                const displayVis = partidoPred !== undefined ? partidoPred.visitante : "-";
+
                 return (
                   <div key={partido.id} className="bg-gray-950/70 p-4 rounded-xl border border-gray-800/80 shadow-sm flex flex-col">
                     <div className="text-center text-xs text-gray-400 mb-4 font-semibold uppercase tracking-wider">{formatearFecha(partido.fecha_partido)}</div>
@@ -240,13 +245,13 @@ export default function FixturePage() {
                           <div className="flex items-center justify-center gap-2 md:gap-3 bg-gray-900/80 p-2 rounded-xl border border-gray-800/80 max-w-[120px] mx-auto shadow-inner">
                             <div className="flex flex-col items-center gap-1.5">
                               <button type="button" onClick={() => ajustarGoles(partido.id, "local", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-blue-600 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
-                              <span className="w-7 text-center font-bold text-lg text-white">{golesLoc}</span>
+                              <span className="w-7 text-center font-bold text-lg text-white">{displayLoc}</span>
                               <button type="button" onClick={() => ajustarGoles(partido.id, "local", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-red-600 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
                             </div>
                             <span className="text-gray-600 font-black text-lg">-</span>
                             <div className="flex flex-col items-center gap-1.5">
                               <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-blue-600 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
-                              <span className="w-7 text-center font-bold text-lg text-white">{golesVis}</span>
+                              <span className="w-7 text-center font-bold text-lg text-white">{displayVis}</span>
                               <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-red-600 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
                             </div>
                           </div>
@@ -269,10 +274,10 @@ export default function FixturePage() {
                       {partido.estado === 'pendiente' ? (
                         <button 
                           onClick={() => guardarPrediccion(partido.id)} 
-                          disabled={guardandoId === partido.id} 
-                          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm px-4 py-2.5 rounded-lg font-bold transition w-full shadow-md"
+                          disabled={guardandoId === partido.id || partidoPred === undefined} 
+                          className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:opacity-80 disabled:cursor-not-allowed text-white text-sm px-4 py-2.5 rounded-lg font-bold transition w-full shadow-md"
                         >
-                          {guardandoId === partido.id ? "Guardando..." : "Guardar"}
+                          {guardandoId === partido.id ? "Guardando..." : (partidoPred === undefined ? "Ingresa resultado" : "Guardar Pronóstico")}
                         </button>
                       ) : (
                         <button 
