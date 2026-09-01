@@ -46,22 +46,24 @@ export default function TablaOficialPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center">
-                <TableProperties className="w-6 h-6 text-purple-400" strokeWidth={2.5} />
-              </div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
-                Tabla Oficial
-              </h1>
+          <div className="flex justify-between items-start md:items-center mb-8">
+        <div className="pl-12 md:pl-0">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center shrink-0">
+              <TableProperties className="w-4 h-4 md:w-6 md:h-6 text-purple-400" strokeWidth={2.5} />
             </div>
-            <p className="text-gray-400 mt-2 text-sm pl-13">Fase de Liga de la Champions League</p>
+            <h1 className="text-2xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 leading-tight">
+              Tabla Oficial
+            </h1>
           </div>
-          <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold border border-gray-700 transition shadow-sm">
-            Volver
-          </Link>
+          <p className="text-gray-400 mt-1 md:mt-2 text-xs md:text-sm pl-10 md:pl-[52px]">
+            Fase de Liga de la Champions League
+          </p>
         </div>
+        <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg text-xs md:text-sm font-bold border border-gray-700 transition shadow-sm shrink-0 mt-1 md:mt-0">
+          Volver
+        </Link>
+      </div>
 
         <div className="bg-gray-900/90 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
           <div className="flex flex-wrap gap-4 p-4 border-b border-gray-800 bg-gray-950/50 text-xs font-semibold">
