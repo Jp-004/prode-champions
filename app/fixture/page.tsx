@@ -329,17 +329,40 @@ export default function FixturePage() {
               ) : (
                 <div className="space-y-1">
                   {pronosticosUsuarios.map((p, i) => {
-                    const acertoLocal = p.local === partidoActivo.goles_local;
-                    const acertoVisitante = p.visitante === partidoActivo.goles_visitante;
-                    const aciertoExacto = partidoActivo.goles_local !== null && acertoLocal && acertoVisitante;
+                    const golesRealesLocal = partidoActivo.goles_local;
+                    const golesRealesVisitante = partidoActivo.goles_visitante;
+                    const partidoIniciado = golesRealesLocal !== null && golesRealesVisitante !== null;
+
+                    // 1. Verificamos si acertó el marcador exacto (Verde)
+                    const aciertoExacto = partidoIniciado && p.local === golesRealesLocal && p.visitante === golesRealesVisitante;
                     
+                    // 2. Verificamos si acertó la tendencia/ganador (Amarillo)
+                    let aciertoParcial = false;
+                    if (partidoIniciado && !aciertoExacto) {
+                      const tendenciaReal = golesRealesLocal === golesRealesVisitante ? 0 : (golesRealesLocal > golesRealesVisitante ? 1 : -1);
+                      const tendenciaPred = p.local === p.visitante ? 0 : (p.local > p.visitante ? 1 : -1);
+                      aciertoParcial = tendenciaReal === tendenciaPred;
+                    }
+
+                    // 3. Asignamos los colores según el nivel de acierto
+                    let bgClass = 'bg-gray-900 border-gray-800';
+                    let textClass = 'text-white';
+                    
+                    if (aciertoExacto) {
+                      bgClass = 'bg-emerald-500/10 border-emerald-500/30';
+                      textClass = 'text-emerald-400';
+                    } else if (aciertoParcial) {
+                      bgClass = 'bg-yellow-500/10 border-yellow-500/30';
+                      textClass = 'text-yellow-400';
+                    }
+
                     return (
-                      <div key={i} className={`flex justify-between items-center p-3 rounded-lg border ${aciertoExacto ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-gray-900 border-gray-800'}`}>
+                      <div key={i} className={`flex justify-between items-center p-3 rounded-lg border ${bgClass}`}>
                         <span className="font-semibold text-sm text-gray-200">{p.nombre}</span>
                         <div className="flex items-center gap-3">
-                          <span className={`font-bold text-base w-5 text-center ${aciertoExacto ? 'text-emerald-400' : 'text-white'}`}>{p.local}</span>
+                          <span className={`font-bold text-base w-5 text-center ${textClass}`}>{p.local}</span>
                           <span className="text-gray-600 text-xs">-</span>
-                          <span className={`font-bold text-base w-5 text-center ${aciertoExacto ? 'text-emerald-400' : 'text-white'}`}>{p.visitante}</span>
+                          <span className={`font-bold text-base w-5 text-center ${textClass}`}>{p.visitante}</span>
                         </div>
                       </div>
                     );
