@@ -148,12 +148,6 @@ export default function FixturePage() {
     setCargandoPronosticos(false);
   };
 
-  const obtenerColorFila = (posicion: number) => {
-    if (posicion >= 1 && posicion <= 8) return "bg-emerald-500/10 border-l-4 border-emerald-500 hover:bg-emerald-500/20";
-    if (posicion >= 9 && posicion <= 24) return "bg-orange-500/10 border-l-4 border-orange-500 hover:bg-orange-500/20";
-    return "bg-red-500/10 border-l-4 border-red-500 hover:bg-red-500/20";
-  };
-
   const formatearFecha = (fechaIso: string) => {
     const opciones: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
     return new Date(fechaIso).toLocaleDateString('es-ES', opciones).replace(',', ' -');
@@ -178,7 +172,7 @@ export default function FixturePage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
-            ⚽ Fixture y Posiciones
+            ⚽ Mis Pronósticos
           </h1>
           <Link href="/" className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 transition">Volver</Link>
         </div>
@@ -211,145 +205,99 @@ export default function FixturePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-1 bg-gray-900/90 p-5 rounded-xl border border-gray-800 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-200">Partidos</h2>
-              <span className="text-xs bg-blue-600/20 text-blue-400 px-2.5 py-1 rounded-full font-bold border border-blue-500/30">Fecha {jornadaSeleccionada}</span>
-            </div>
+        <div className="bg-gray-900/90 p-5 rounded-xl border border-gray-800 shadow-sm w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-gray-200">Partidos</h2>
+            <span className="text-xs bg-blue-600/20 text-blue-400 px-2.5 py-1 rounded-full font-bold border border-blue-500/30">Fecha {jornadaSeleccionada}</span>
+          </div>
 
-            <div className="flex gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-thin scrollbar-thumb-gray-700">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                <button key={num} type="button" onClick={() => setJornadaSeleccionada(num)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${jornadaSeleccionada === num ? "bg-blue-600 text-white shadow-md shadow-blue-600/30" : "bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white"}`}>F{num}</button>
-              ))}
-            </div>
-            
-            {loading ? (
-              <p className="text-center text-gray-400 py-6">Cargando partidos...</p>
-            ) : partidosFiltrados.length === 0 ? (
-              <div className="text-gray-400 text-center py-10 border border-dashed border-gray-700 rounded-lg">No hay partidos para esta fecha.</div>
-            ) : (
-              <div className="space-y-4">
-                {partidosFiltrados.map((partido) => {
-                  const golesLoc = inputs[partido.id]?.local ?? 0;
-                  const golesVis = inputs[partido.id]?.visitante ?? 0;
-                  const yaEmpezo = new Date(partido.fecha_partido).getTime() <= new Date().getTime() || partido.estado !== 'pendiente';
+          <div className="flex gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-thin scrollbar-thumb-gray-700">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+              <button key={num} type="button" onClick={() => setJornadaSeleccionada(num)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${jornadaSeleccionada === num ? "bg-blue-600 text-white shadow-md shadow-blue-600/30" : "bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white"}`}>F{num}</button>
+            ))}
+          </div>
+          
+          {loading ? (
+            <p className="text-center text-gray-400 py-6">Cargando partidos...</p>
+          ) : partidosFiltrados.length === 0 ? (
+            <div className="text-gray-400 text-center py-10 border border-dashed border-gray-700 rounded-lg">No hay partidos para esta fecha.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {partidosFiltrados.map((partido) => {
+                const golesLoc = inputs[partido.id]?.local ?? 0;
+                const golesVis = inputs[partido.id]?.visitante ?? 0;
+                const yaEmpezo = new Date(partido.fecha_partido).getTime() <= new Date().getTime() || partido.estado !== 'pendiente';
 
-                  return (
-                    <div key={partido.id} className="bg-gray-950/70 p-4 pb-3 rounded-lg border border-gray-800/80">
-                      <div className="text-center text-xs text-gray-400 mb-4 font-semibold uppercase tracking-wider">{formatearFecha(partido.fecha_partido)}</div>
+                return (
+                  <div key={partido.id} className="bg-gray-950/70 p-4 pb-3 rounded-lg border border-gray-800/80 flex flex-col h-full">
+                    <div className="text-center text-xs text-gray-400 mb-4 font-semibold uppercase tracking-wider">{formatearFecha(partido.fecha_partido)}</div>
+                    
+                    <div className="grid grid-cols-3 items-center gap-2 flex-grow">
                       
-                      <div className="grid grid-cols-3 items-center gap-2">
-                        {/* Escudo Local */}
-                        <div className="flex flex-col items-center justify-center text-center">
-                          <div className="w-10 h-10 mb-2 flex items-center justify-center">
-                            {partido.local.escudo_url ? <img src={partido.local.escudo_url} alt={partido.local.nombre} className="w-9 h-9 object-contain" /> : <div className="w-9 h-9 bg-gray-800 rounded-full"></div>}
-                          </div>
-                          <span className="text-xs font-semibold text-gray-200 leading-tight line-clamp-2">{partido.local.nombre}</span>
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <div className="w-10 h-10 mb-2 flex items-center justify-center">
+                          {partido.local.escudo_url ? <img src={partido.local.escudo_url} alt={partido.local.nombre} className="w-9 h-9 object-contain" /> : <div className="w-9 h-9 bg-gray-800 rounded-full"></div>}
                         </div>
-
-                        {/* Centro: Controles o Resultado */}
-                        <div className="flex flex-col items-center justify-center w-full">
-                          {!yaEmpezo ? (
-                            <div className="flex items-center justify-center gap-2 bg-gray-900/80 p-2 rounded-lg border border-gray-800 w-full min-w-[100px]">
-                              <div className="flex flex-col items-center gap-1">
-                                <button type="button" onClick={() => ajustarGoles(partido.id, "local", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
-                                <span className="w-7 text-center font-bold text-lg text-white">{golesLoc}</span>
-                                <button type="button" onClick={() => ajustarGoles(partido.id, "local", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
-                              </div>
-                              <span className="text-gray-600 font-black text-lg">-</span>
-                              <div className="flex flex-col items-center gap-1">
-                                <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
-                                <span className="w-7 text-center font-bold text-lg text-white">{golesVis}</span>
-                                <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="bg-blue-600/90 text-white px-4 py-2 rounded-lg text-xl font-black tracking-widest shadow-sm">
-                              {partido.goles_local ?? '0'} - {partido.goles_visitante ?? '0'}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Escudo Visitante */}
-                        <div className="flex flex-col items-center justify-center text-center">
-                          <div className="w-10 h-10 mb-2 flex items-center justify-center">
-                            {partido.visitante.escudo_url ? <img src={partido.visitante.escudo_url} alt={partido.visitante.nombre} className="w-9 h-9 object-contain" /> : <div className="w-9 h-9 bg-gray-800 rounded-full"></div>}
-                          </div>
-                          <span className="text-xs font-semibold text-gray-200 leading-tight line-clamp-2">{partido.visitante.nombre}</span>
-                        </div>
+                        <span className="text-xs font-semibold text-gray-200 leading-tight line-clamp-2">{partido.local.nombre}</span>
                       </div>
 
-                      {/* Botones inferiores ancho completo */}
-                      <div className="mt-4 pt-3 border-t border-gray-800/50">
+                      <div className="flex flex-col items-center justify-center w-full">
                         {!yaEmpezo ? (
-                          <button 
-                            onClick={() => guardarPrediccion(partido.id)} 
-                            disabled={guardandoId === partido.id} 
-                            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm px-4 py-2.5 rounded-lg font-bold transition w-full shadow-sm"
-                          >
-                            {guardandoId === partido.id ? "Guardando..." : "Guardar Pronóstico"}
-                          </button>
+                          <div className="flex items-center justify-center gap-2 bg-gray-900/80 p-2 rounded-lg border border-gray-800 w-full min-w-[100px]">
+                            <div className="flex flex-col items-center gap-1">
+                              <button type="button" onClick={() => ajustarGoles(partido.id, "local", 1)} className="w-6 h-6 md:w-7 md:h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
+                              <span className="w-6 md:w-7 text-center font-bold text-lg text-white">{golesLoc}</span>
+                              <button type="button" onClick={() => ajustarGoles(partido.id, "local", -1)} className="w-6 h-6 md:w-7 md:h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
+                            </div>
+                            <span className="text-gray-600 font-black text-lg">-</span>
+                            <div className="flex flex-col items-center gap-1">
+                              <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", 1)} className="w-6 h-6 md:w-7 md:h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
+                              <span className="w-6 md:w-7 text-center font-bold text-lg text-white">{golesVis}</span>
+                              <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", -1)} className="w-6 h-6 md:w-7 md:h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
+                            </div>
+                          </div>
                         ) : (
-                          <button 
-                            onClick={() => abrirPronosticos(partido)}
-                            className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2.5 rounded-lg text-xs uppercase tracking-widest font-bold transition border border-gray-700 flex justify-center items-center gap-2 shadow-sm"
-                          >
-                            👀 Ver Pronósticos
-                          </button>
+                          <span className="bg-blue-600/90 text-white px-3 py-2 rounded-lg text-lg font-black tracking-widest shadow-sm whitespace-nowrap inline-block text-center min-w-[70px]">
+                            {partido.goles_local ?? '0'} - {partido.goles_visitante ?? '0'}
+                          </span>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
-          <div className="lg:col-span-2 bg-gray-900/90 p-5 rounded-xl border border-gray-800 shadow-sm">
-            <h2 className="text-lg font-bold mb-4 text-gray-200">Tabla Oficial</h2>
-            {loading ? (
-              <p className="text-center text-gray-400 py-6">Cargando tabla...</p>
-            ) : (
-              <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700">
-                <table className="w-full min-w-[600px] text-left whitespace-nowrap border-collapse text-sm">
-                  <thead>
-                    <tr className="text-gray-400 border-b border-gray-800 text-xs uppercase tracking-wider">
-                      <th className="pb-3 px-3 w-10 text-center">Pos</th>
-                      <th className="pb-3 px-3 text-left min-w-[160px]">Equipo</th>
-                      <th className="pb-3 px-2 text-center w-8">J</th>
-                      <th className="pb-3 px-2 text-center w-8 text-emerald-400">G</th>
-                      <th className="pb-3 px-2 text-center w-8 text-gray-400">E</th>
-                      <th className="pb-3 px-2 text-center w-8 text-red-400">P</th>
-                      <th className="pb-3 px-2 text-center w-8">GF</th>
-                      <th className="pb-3 px-2 text-center w-8">GC</th>
-                      <th className="pb-3 px-2 text-center w-8">DG</th>
-                      <th className="pb-3 px-3 text-center w-10 font-bold text-white">PTS</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800/60">
-                    {equipos.map((equipo) => (
-                      <tr key={equipo.id} className={`transition-colors ${obtenerColorFila(equipo.posicion_real_actual)}`}>
-                        <td className="py-3 px-3 font-bold text-white text-center">{equipo.posicion_real_actual}°</td>
-                        <td className="py-3 px-3 flex items-center gap-3">
-                          {equipo.escudo_url ? <img src={equipo.escudo_url} alt={`Escudo`} className="w-6 h-6 object-contain shrink-0" /> : <div className="w-6 h-6 bg-gray-800 rounded-full shrink-0"></div>}
-                          <span className="font-semibold text-gray-200 truncate">{equipo.nombre}</span>
-                        </td>
-                        <td className="py-3 px-2 text-center text-gray-300">{equipo.partidos_jugados}</td>
-                        <td className="py-3 px-2 text-center text-emerald-400 font-medium">{equipo.partidos_ganados}</td>
-                        <td className="py-3 px-2 text-center text-gray-400 font-medium">{equipo.partidos_empatados}</td>
-                        <td className="py-3 px-2 text-center text-red-400 font-medium">{equipo.partidos_perdidos}</td>
-                        <td className="py-3 px-2 text-center text-gray-400">{equipo.goles_favor}</td>
-                        <td className="py-3 px-2 text-center text-gray-400">{equipo.goles_contra}</td>
-                        <td className="py-3 px-2 text-center text-gray-400">{equipo.diferencia_goles}</td>
-                        <td className="py-3 px-3 text-center font-bold text-white text-base">{equipo.puntos}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <div className="w-10 h-10 mb-2 flex items-center justify-center">
+                          {partido.visitante.escudo_url ? <img src={partido.visitante.escudo_url} alt={partido.visitante.nombre} className="w-9 h-9 object-contain" /> : <div className="w-9 h-9 bg-gray-800 rounded-full"></div>}
+                        </div>
+                        <span className="text-xs font-semibold text-gray-200 leading-tight line-clamp-2">{partido.visitante.nombre}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-gray-800/50 mt-auto">
+                      {!yaEmpezo ? (
+                        <button 
+                          onClick={() => guardarPrediccion(partido.id)} 
+                          disabled={guardandoId === partido.id} 
+                          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm px-4 py-2.5 rounded-lg font-bold transition w-full shadow-sm"
+                        >
+                          {guardandoId === partido.id ? "Guardando..." : "Guardar Pronóstico"}
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => abrirPronosticos(partido)}
+                          className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2.5 rounded-lg text-xs uppercase tracking-widest font-bold transition border border-gray-700 flex justify-center items-center gap-2 shadow-sm group"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-gray-400 group-hover:text-blue-400 transition-colors">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                          </svg>
+                          Ver Pronósticos
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

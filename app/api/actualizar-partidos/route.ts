@@ -58,8 +58,21 @@ export async function GET(request: Request) {
       .select('id, equipo_local_id, equipo_visitante_id');
     const partidosExistentes = partidosDB || [];
 
-    const partidosAActualizar: any[] = [];
-    const partidosAInsertar: any[] = [];
+// Le explicamos a TypeScript exactamente qué datos guardaremos
+    type DatosPartido = {
+      id?: number; // Opcional, porque los partidos nuevos no lo tienen
+      equipo_local_id: number;
+      equipo_visitante_id: number;
+      estado: string;
+      fecha_partido: string;
+      goles_local: number | null;
+      goles_visitante: number | null;
+      fase: string;
+      jornada: number;
+    };
+
+    const partidosAActualizar: DatosPartido[] = [];
+    const partidosAInsertar: DatosPartido[] = [];
     const errores = new Set<string>();
 
     const partidosFaseLiga = datosAPI.matches.filter((m: { matchday: number }) => m.matchday >= 1 && m.matchday <= 8);
