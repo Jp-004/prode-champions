@@ -29,7 +29,8 @@ const familiasEquipos = [
   ["barcelona", "fc barcelona", "barca"], 
   ["shakhtar", "shakhtar donetsk", "fk shakhtar donetsk", "shaktar"], 
   ["manchester city", "manchester city fc", "man city", "city"], 
-  ["manchester united", "manchester united fc", "man united", "man utd"]
+  ["manchester united", "manchester united fc", "man united", "man utd"],
+  ["aek atenas", "pae aek", "aek athens", "aek"]
 ];
 
 export async function GET(request: Request) {
