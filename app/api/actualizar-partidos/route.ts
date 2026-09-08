@@ -151,28 +151,47 @@ export async function GET(request: Request) {
     }
 
     // OPTIMIZACIÓN 2: Escritura masiva en lote (1 o 2 llamadas en total)
+// ... (el código de arriba queda igual, desde el for loop)
+
+    // 1. INTENTAMOS ACTUALIZAR (Y CAPTURAMOS EL ERROR SI EXPLOTA)
     if (partidosAActualizar.length > 0) {
       const { error: errUpdate } = await supabaseAdmin
         .from('partidos')
-        .upsert(partidosAActualizar);
-      if (errUpdate) console.error("Error en bulk upsert:", errUpdate);
+        .upsert(partidosAActualizar, { onConflict: 'id' });
+      
+      // SI HAY UN ERROR (COMO EL DE PUNTOS_TORNEO), LO MOSTRAMOS EN PANTALLA
+      if (errUpdate) {
+        return NextResponse.json({ 
+          error: "🛑 SUPABASE RECHAZÓ LA ACTUALIZACIÓN", 
+          motivo: errUpdate.message,
+          detalles: errUpdate
+        });
+      }
     }
 
+    // 2. INTENTAMOS INSERTAR
     if (partidosAInsertar.length > 0) {
-      const { error: errInsert } = await supabaseAdmin
-        .from('partidos')
-        .insert(partidosAInsertar);
-      if (errInsert) console.error("Error en bulk insert:", errInsert);
+      const { error: errInsert } = await supabaseAdmin.from('partidos').insert(partidosAInsertar);
+      if (errInsert) {
+        return NextResponse.json({ 
+          error: "🛑 ERROR AL INSERTAR PARTIDOS NUEVOS", 
+          motivo: errInsert.message 
+        });
+      }
     }
 
+    // SI LLEGÓ HASTA AQUÍ, LA BASE DE DATOS LO ACEPTÓ PERFECTAMENTE
     return NextResponse.json({
       success: true,
-      message: `Proceso terminado ultra-rápido. Nuevos: ${partidosAInsertar.length} | Actualizados: ${partidosAActualizar.length}`,
+      message: `¡Datos guardados con éxito! Actualizados: ${partidosAActualizar.length} | Nuevos: ${partidosAInsertar.length}`,
       equipos_sin_coincidencia: Array.from(errores)
     });
 
   } catch (error) {
     console.error("Fallo general:", error);
-    return NextResponse.json({ error: 'Fallo general' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Fallo general del servidor', 
+      detalles: error instanceof Error ? error.message : 'Error desconocido' 
+    });
   }
 }
