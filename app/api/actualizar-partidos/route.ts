@@ -79,7 +79,8 @@ export async function GET(request: Request) {
     const partidosAInsertar: DatosPartido[] = [];
     const errores = new Set<string>();
 
-    const partidosFaseLiga = datosAPI.matches.filter((m: { matchday: number }) => m.matchday >= 1 && m.matchday <= 8);
+    // Traemos todos los partidos de la API, sin filtrar por número
+    const partidosFaseLiga = datosAPI.matches;
 
     const buscarEquipo = (equipoAPI: { shortName?: string; name?: string }) => {
       const nomCorto = normalizar(equipoAPI?.shortName);
@@ -135,7 +136,7 @@ export async function GET(request: Request) {
           goles_local: partido.score?.fullTime?.home ?? null,
           goles_visitante: partido.score?.fullTime?.away ?? null,
           fase: 'fase_liga',
-          jornada: partido.matchday
+          jornada: partido.matchday || 1
         };
 
         if (partidoExistente) {
