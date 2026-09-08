@@ -102,16 +102,20 @@ export async function GET(request: Request) {
         if (partido.status === 'IN_PLAY' || partido.status === 'PAUSED') estadoBD = 'en_juego';
         if (partido.status === 'FINISHED') estadoBD = 'finalizado';
 
-        const { data: partidoExistente } = await supabaseAdmin
+        // 1. Verificamos si el partido ya está en la base de datos (a prueba de fallos)
+        const { data: partidosEncontrados } = await supabaseAdmin
           .from('partidos')
           .select('id')
           .match({ equipo_local_id: local.id, equipo_visitante_id: visitante.id })
-          .maybeSingle();
+          .limit(1);
 
-        if (partidoExistente) {
+        if (partidosEncontrados && partidosEncontrados.length > 0) {
+          const partidoExistente = partidosEncontrados[0];
+          
+          // 2. Si ya existe, ACTUALIZAMOS los goles y el estado
           await supabaseAdmin
             .from('partidos')
-            .update({
+            .update({ 
               estado: estadoBD,
               fecha_partido: partido.utcDate,
               goles_local: partido.score?.fullTime?.home ?? null,
@@ -119,6 +123,7 @@ export async function GET(request: Request) {
               jornada: partido.matchday
             })
             .eq('id', partidoExistente.id);
+            
           actualizados++;
         } else {
           await supabaseAdmin
