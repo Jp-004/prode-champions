@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 
+export const dynamic = 'force-dynamic';
+
 // Mejoramos el normalizador para quitar puntos, tildes, comas y dejar solo texto limpio
 const normalizar = (texto?: string) => {
   if (!texto) return "";
@@ -41,7 +43,8 @@ export async function GET(request: Request) {
 
     const respuesta = await fetch("https://api.football-data.org/v4/competitions/CL/matches", {
       method: 'GET',
-      headers: { "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN! }
+      headers: { "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN! },
+      cache: 'no-store'
     });
     const datosAPI = await respuesta.json();
 
