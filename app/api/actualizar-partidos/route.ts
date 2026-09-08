@@ -42,7 +42,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const respuesta = await fetch("https://api.football-data.org/v4/competitions/CL/matches", {
+    const timestamp = new Date().getTime();
+    const apiUrl = `https://api.football-data.org/v4/competitions/CL/matches?_nocache=${timestamp}`;
+
+    const respuesta = await fetch(apiUrl, {
       method: 'GET',
       headers: { "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN! },
       cache: 'no-store'
