@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     // OPTIMIZACIÓN 1: Traemos todos los partidos de Supabase en 1 sola consulta
     const { data: partidosDB } = await supabaseAdmin
       .from('partidos')
-      .select('id, equipo_local_id, equipo_visitante_id');
+      .select('id, equipo_local_id, equipo_visitante_id, estado');
     const partidosExistentes = partidosDB || [];
 
 // Le explicamos a TypeScript exactamente qué datos guardaremos
@@ -143,7 +143,9 @@ export async function GET(request: Request) {
         };
 
         if (partidoExistente) {
-          partidosAActualizar.push({ id: partidoExistente.id, ...payload });
+          if (partidoExistente.estado !== 'finalizado') {
+            partidosAActualizar.push({ id: partidoExistente.id, ...payload });
+          }
         } else {
           partidosAInsertar.push(payload);
         }
