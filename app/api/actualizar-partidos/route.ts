@@ -11,7 +11,7 @@ const normalizar = (texto?: string) => {
     .trim();
 };
 
-// LA NUEVA MAGIA: "Familias de Equipos" (Sin importar quién sea quién, si coinciden en la familia, se unen)
+// "Familias de Equipos"
 const familiasEquipos = [
   ["estrella roja", "crvena zvezda", "crvena"],
   ["bayern munich", "bayern munchen", "bayern"],
@@ -24,8 +24,6 @@ const familiasEquipos = [
   ["sturm graz", "sturm"],
   ["salzburgo", "salzburg", "red bull salzburg"],
   ["milan", "ac milan"],
-  
-  // Los 4 equipos reparados con todas sus variantes posibles
   ["barcelona", "fc barcelona", "barca"], 
   ["shakhtar", "shakhtar donetsk", "fk shakhtar donetsk", "shaktar"], 
   ["manchester city", "manchester city fc", "man city", "city"], 
@@ -54,46 +52,51 @@ export async function GET(request: Request) {
     const { data: equiposDB } = await supabaseAdmin.from('equipos').select('id, nombre');
     if (!equiposDB) throw new Error("Error al cargar Supabase");
 
-    let creados = 0;
-    let actualizados = 0;
+    // OPTIMIZACIÓN 1: Traemos todos los partidos de Supabase en 1 sola consulta
+    const { data: partidosDB } = await supabaseAdmin
+      .from('partidos')
+      .select('id, equipo_local_id, equipo_visitante_id');
+    const partidosExistentes = partidosDB || [];
+
+    const partidosAActualizar: any[] = [];
+    const partidosAInsertar: any[] = [];
     const errores = new Set<string>();
 
     const partidosFaseLiga = datosAPI.matches.filter((m: { matchday: number }) => m.matchday >= 1 && m.matchday <= 8);
 
+    const buscarEquipo = (equipoAPI: { shortName?: string; name?: string }) => {
+      const nomCorto = normalizar(equipoAPI?.shortName);
+      const nomLargo = normalizar(equipoAPI?.name);
+
+      const encontrado = equiposDB.find(e => {
+        const nomDB = normalizar(e.nombre);
+        
+        // 1. Coincidencia directa
+        if (nomDB === nomCorto || nomDB === nomLargo) return true;
+        if (nomCorto && nomDB.includes(nomCorto)) return true;
+        if (nomLargo && nomDB.includes(nomLargo)) return true;
+        if (nomCorto && nomCorto.includes(nomDB)) return true;
+        if (nomLargo && nomLargo.includes(nomDB)) return true;
+        
+        // 2. Coincidencia por Familia
+        for (const familia of familiasEquipos) {
+          const dbEnFamilia = familia.some(miembro => nomDB.includes(miembro) || miembro.includes(nomDB));
+          const apiEnFamilia = familia.some(miembro => 
+            (nomCorto && (nomCorto.includes(miembro) || miembro.includes(nomCorto))) || 
+            (nomLargo && (nomLargo.includes(miembro) || miembro.includes(nomLargo)))
+          );
+          
+          if (dbEnFamilia && apiEnFamilia) return true;
+        }
+
+        return false;
+      });
+
+      if (!encontrado) errores.add(equipoAPI?.name || "Desconocido");
+      return encontrado;
+    };
+
     for (const partido of partidosFaseLiga) {
-      
-      const buscarEquipo = (equipoAPI: { shortName?: string; name?: string }) => {
-        const nomCorto = normalizar(equipoAPI?.shortName);
-        const nomLargo = normalizar(equipoAPI?.name);
-
-        const encontrado = equiposDB.find(e => {
-          const nomDB = normalizar(e.nombre);
-          
-          // 1. Si son exactamente iguales o se contienen directamente
-          if (nomDB === nomCorto || nomDB === nomLargo) return true;
-          if (nomCorto && nomDB.includes(nomCorto)) return true;
-          if (nomLargo && nomDB.includes(nomLargo)) return true;
-          if (nomCorto && nomCorto.includes(nomDB)) return true;
-          if (nomLargo && nomLargo.includes(nomDB)) return true;
-          
-          // 2. Si pertenecen a la misma "Familia"
-          for (const familia of familiasEquipos) {
-            const dbEnFamilia = familia.some(miembro => nomDB.includes(miembro) || miembro.includes(nomDB));
-            const apiEnFamilia = familia.some(miembro => 
-              (nomCorto && (nomCorto.includes(miembro) || miembro.includes(nomCorto))) || 
-              (nomLargo && (nomLargo.includes(miembro) || miembro.includes(nomLargo)))
-            );
-            
-            if (dbEnFamilia && apiEnFamilia) return true;
-          }
-
-          return false;
-        });
-
-        if (!encontrado) errores.add(equipoAPI?.name || "Desconocido");
-        return encontrado;
-      };
-
       const local = buscarEquipo(partido.homeTeam);
       const visitante = buscarEquipo(partido.awayTeam);
 
@@ -102,55 +105,53 @@ export async function GET(request: Request) {
         if (partido.status === 'IN_PLAY' || partido.status === 'PAUSED') estadoBD = 'en_juego';
         if (partido.status === 'FINISHED') estadoBD = 'finalizado';
 
-        // 1. Verificamos si el partido ya está en la base de datos (a prueba de fallos)
-        const { data: partidosEncontrados } = await supabaseAdmin
-          .from('partidos')
-          .select('id')
-          .match({ equipo_local_id: local.id, equipo_visitante_id: visitante.id })
-          .limit(1);
+        // Buscamos en memoria (0 milisegundos)
+        const partidoExistente = partidosExistentes.find(
+          p => p.equipo_local_id === local.id && p.equipo_visitante_id === visitante.id
+        );
 
-        if (partidosEncontrados && partidosEncontrados.length > 0) {
-          const partidoExistente = partidosEncontrados[0];
-          
-          // 2. Si ya existe, ACTUALIZAMOS los goles y el estado
-          await supabaseAdmin
-            .from('partidos')
-            .update({ 
-              estado: estadoBD,
-              fecha_partido: partido.utcDate,
-              goles_local: partido.score?.fullTime?.home ?? null,
-              goles_visitante: partido.score?.fullTime?.away ?? null,
-              jornada: partido.matchday
-            })
-            .eq('id', partidoExistente.id);
-            
-          actualizados++;
+        const payload = {
+          equipo_local_id: local.id,
+          equipo_visitante_id: visitante.id,
+          estado: estadoBD,
+          fecha_partido: partido.utcDate,
+          goles_local: partido.score?.fullTime?.home ?? null,
+          goles_visitante: partido.score?.fullTime?.away ?? null,
+          fase: 'fase_liga',
+          jornada: partido.matchday
+        };
+
+        if (partidoExistente) {
+          partidosAActualizar.push({ id: partidoExistente.id, ...payload });
         } else {
-          await supabaseAdmin
-            .from('partidos')
-            .insert({
-              equipo_local_id: local.id,
-              equipo_visitante_id: visitante.id,
-              estado: estadoBD,
-              fecha_partido: partido.utcDate,
-              goles_local: partido.score?.fullTime?.home ?? null,
-              goles_visitante: partido.score?.fullTime?.away ?? null,
-              fase: 'fase_liga',
-              jornada: partido.matchday
-            });
-          creados++;
+          partidosAInsertar.push(payload);
         }
       }
     }
 
+    // OPTIMIZACIÓN 2: Escritura masiva en lote (1 o 2 llamadas en total)
+    if (partidosAActualizar.length > 0) {
+      const { error: errUpdate } = await supabaseAdmin
+        .from('partidos')
+        .upsert(partidosAActualizar);
+      if (errUpdate) console.error("Error en bulk upsert:", errUpdate);
+    }
+
+    if (partidosAInsertar.length > 0) {
+      const { error: errInsert } = await supabaseAdmin
+        .from('partidos')
+        .insert(partidosAInsertar);
+      if (errInsert) console.error("Error en bulk insert:", errInsert);
+    }
+
     return NextResponse.json({
-       success: true,
-       message: `Proceso terminado. Nuevos: ${creados} | Actualizados: ${actualizados}`,
-       equipos_sin_coincidencia: Array.from(errores)
-     });
+      success: true,
+      message: `Proceso terminado ultra-rápido. Nuevos: ${partidosAInsertar.length} | Actualizados: ${partidosAActualizar.length}`,
+      equipos_sin_coincidencia: Array.from(errores)
+    });
 
   } catch (error) {
-    console.error(error);
+    console.error("Fallo general:", error);
     return NextResponse.json({ error: 'Fallo general' }, { status: 500 });
   }
 }

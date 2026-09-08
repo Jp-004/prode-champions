@@ -85,7 +85,6 @@ export default function FixturePage() {
   const guardarPrediccion = async (partidoId: number) => {
     if (!user) return mostrarNotificacion("Debes iniciar sesión para jugar.", "error");
     
-    // DOBLE CHEQUEO DE SEGURIDAD: Evita que envíen el pronóstico si el partido ya empezó
     const partido = partidos.find(p => p.id === partidoId);
     if (partido && new Date(partido.fecha_partido).getTime() <= new Date().getTime()) {
       return mostrarNotificacion("El partido ya comenzó, no se permiten cambios.", "error");
@@ -117,27 +116,23 @@ export default function FixturePage() {
     else mostrarNotificacion("¡Candidatos guardados exitosamente!", "exito");
   };
 
-  // CONSULTA REPARADA: En dos pasos para evitar errores de vinculación de base de datos
   const abrirPronosticos = async (partido: Partido) => {
     setPartidoActivo(partido);
     setModalPronosticos(true);
     setCargandoPronosticos(true);
 
-    // 1. Buscamos primero los pronósticos
     const { data: predicciones } = await supabase
       .from("predicciones")
       .select("usuario_id, prediccion_local, prediccion_visitante")
       .eq("partido_id", partido.id);
 
     if (predicciones && predicciones.length > 0) {
-      // 2. Buscamos cómo se llaman los usuarios que hicieron esos pronósticos
       const userIds = predicciones.map(p => p.usuario_id);
       const { data: perfiles } = await supabase
         .from("perfiles")
         .select("id, nombre")
         .in("id", userIds);
 
-      // 3. Unimos la información
       const formateada = predicciones.map(p => {
         const perfil = perfiles?.find(pf => pf.id === p.usuario_id);
         return {
@@ -238,15 +233,14 @@ export default function FixturePage() {
                 {partidosFiltrados.map((partido) => {
                   const golesLoc = inputs[partido.id]?.local ?? 0;
                   const golesVis = inputs[partido.id]?.visitante ?? 0;
-
-                  // LÓGICA DE BLOQUEO REPARADA: Bloquea por RELOJ, no por API.
                   const yaEmpezo = new Date(partido.fecha_partido).getTime() <= new Date().getTime() || partido.estado !== 'pendiente';
 
                   return (
-                    <div key={partido.id} className="bg-gray-950/70 p-4 rounded-lg border border-gray-800/80">
+                    <div key={partido.id} className="bg-gray-950/70 p-4 pb-3 rounded-lg border border-gray-800/80">
                       <div className="text-center text-xs text-gray-400 mb-4 font-semibold uppercase tracking-wider">{formatearFecha(partido.fecha_partido)}</div>
+                      
                       <div className="grid grid-cols-3 items-center gap-2">
-                        
+                        {/* Escudo Local */}
                         <div className="flex flex-col items-center justify-center text-center">
                           <div className="w-10 h-10 mb-2 flex items-center justify-center">
                             {partido.local.escudo_url ? <img src={partido.local.escudo_url} alt={partido.local.nombre} className="w-9 h-9 object-contain" /> : <div className="w-9 h-9 bg-gray-800 rounded-full"></div>}
@@ -254,48 +248,56 @@ export default function FixturePage() {
                           <span className="text-xs font-semibold text-gray-200 leading-tight line-clamp-2">{partido.local.nombre}</span>
                         </div>
 
-                        <div className="flex flex-col items-center justify-center gap-3 w-full">
+                        {/* Centro: Controles o Resultado */}
+                        <div className="flex flex-col items-center justify-center w-full">
                           {!yaEmpezo ? (
-                            <>
-                              <div className="flex items-center justify-center gap-3 bg-gray-900/60 p-2 rounded-lg border border-gray-800 w-full">
-                                <div className="flex flex-col items-center gap-1">
-                                  <button type="button" onClick={() => ajustarGoles(partido.id, "local", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
-                                  <span className="w-7 text-center font-bold text-lg text-white">{golesLoc}</span>
-                                  <button type="button" onClick={() => ajustarGoles(partido.id, "local", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
-                                </div>
-                                <span className="text-gray-600 font-black text-lg">-</span>
-                                <div className="flex flex-col items-center gap-1">
-                                  <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
-                                  <span className="w-7 text-center font-bold text-lg text-white">{golesVis}</span>
-                                  <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
-                                </div>
+                            <div className="flex items-center justify-center gap-2 bg-gray-900/80 p-2 rounded-lg border border-gray-800 w-full min-w-[100px]">
+                              <div className="flex flex-col items-center gap-1">
+                                <button type="button" onClick={() => ajustarGoles(partido.id, "local", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
+                                <span className="w-7 text-center font-bold text-lg text-white">{golesLoc}</span>
+                                <button type="button" onClick={() => ajustarGoles(partido.id, "local", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
                               </div>
-                              <button onClick={() => guardarPrediccion(partido.id)} disabled={guardandoId === partido.id} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-md font-semibold transition w-full shadow-sm">
-                                {guardandoId === partido.id ? "Guardando..." : "Guardar Pronóstico"}
-                              </button>
-                            </>
-                          ) : (
-                            <div className="flex flex-col items-center gap-2.5 w-full">
-                              <span className="bg-blue-600/90 text-white px-3 py-1.5 rounded-md text-sm font-bold tracking-wider">
-                                {partido.goles_local ?? '-'} - {partido.goles_visitante ?? '-'}
-                              </span>
-                              <button 
-                                onClick={() => abrirPronosticos(partido)}
-                                className="text-[11px] uppercase tracking-wider bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded w-full font-bold transition border border-gray-700 flex justify-center items-center gap-1"
-                              >
-                                👁 Ver Pronósticos
-                              </button>
+                              <span className="text-gray-600 font-black text-lg">-</span>
+                              <div className="flex flex-col items-center gap-1">
+                                <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", 1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">+</button>
+                                <span className="w-7 text-center font-bold text-lg text-white">{golesVis}</span>
+                                <button type="button" onClick={() => ajustarGoles(partido.id, "visitante", -1)} className="w-7 h-6 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-sm flex items-center justify-center select-none transition">-</button>
+                              </div>
                             </div>
+                          ) : (
+                            <span className="bg-blue-600/90 text-white px-4 py-2 rounded-lg text-xl font-black tracking-widest shadow-sm">
+                              {partido.goles_local ?? '0'} - {partido.goles_visitante ?? '0'}
+                            </span>
                           )}
                         </div>
 
+                        {/* Escudo Visitante */}
                         <div className="flex flex-col items-center justify-center text-center">
                           <div className="w-10 h-10 mb-2 flex items-center justify-center">
                             {partido.visitante.escudo_url ? <img src={partido.visitante.escudo_url} alt={partido.visitante.nombre} className="w-9 h-9 object-contain" /> : <div className="w-9 h-9 bg-gray-800 rounded-full"></div>}
                           </div>
                           <span className="text-xs font-semibold text-gray-200 leading-tight line-clamp-2">{partido.visitante.nombre}</span>
                         </div>
-                        
+                      </div>
+
+                      {/* Botones inferiores ancho completo */}
+                      <div className="mt-4 pt-3 border-t border-gray-800/50">
+                        {!yaEmpezo ? (
+                          <button 
+                            onClick={() => guardarPrediccion(partido.id)} 
+                            disabled={guardandoId === partido.id} 
+                            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm px-4 py-2.5 rounded-lg font-bold transition w-full shadow-sm"
+                          >
+                            {guardandoId === partido.id ? "Guardando..." : "Guardar Pronóstico"}
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => abrirPronosticos(partido)}
+                            className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2.5 rounded-lg text-xs uppercase tracking-widest font-bold transition border border-gray-700 flex justify-center items-center gap-2 shadow-sm"
+                          >
+                            👀 Ver Pronósticos
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -364,7 +366,7 @@ export default function FixturePage() {
                 {partidoActivo.local.escudo_url ? <img src={partidoActivo.local.escudo_url} className="w-8 h-8 object-contain mb-1" alt="" /> : <div className="w-8 h-8 bg-gray-800 rounded-full mb-1"></div>}
                 <span className="text-[10px] uppercase font-bold text-gray-400 text-center">{partidoActivo.local.nombre}</span>
               </div>
-              <span className="font-black text-xl text-white">{partidoActivo.goles_local ?? '-'} - {partidoActivo.goles_visitante ?? '-'}</span>
+              <span className="font-black text-xl text-white">{partidoActivo.goles_local ?? '0'} - {partidoActivo.goles_visitante ?? '0'}</span>
               <div className="flex flex-col items-center w-20">
                 {partidoActivo.visitante.escudo_url ? <img src={partidoActivo.visitante.escudo_url} className="w-8 h-8 object-contain mb-1" alt="" /> : <div className="w-8 h-8 bg-gray-800 rounded-full mb-1"></div>}
                 <span className="text-[10px] uppercase font-bold text-gray-400 text-center">{partidoActivo.visitante.nombre}</span>
