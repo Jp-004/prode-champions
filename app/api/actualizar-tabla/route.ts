@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     const datosAPI = await respuesta.json();
     
     // Aplicamos el tipo StandingAPI al filtro para eliminar el (s: any)
-    const tablaLiga = datosAPI.standings?.find((s: StandingAPI) => s.stage === 'LEAGUE' && s.type === 'TOTAL');
+    const tablaLiga = datosAPI.standings?.find((s: StandingAPI) => s.type === 'TOTAL' && s.table && s.table.length > 0);
     if (!tablaLiga) return NextResponse.json({ error: 'La API no devolvió la tabla de posiciones' });
 
     const { data: equiposDB } = await supabaseAdmin.from('equipos').select('id, nombre');
