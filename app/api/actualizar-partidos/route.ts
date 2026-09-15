@@ -67,7 +67,7 @@ export async function GET(request: Request) {
 
 // Le explicamos a TypeScript exactamente qué datos guardaremos
     type DatosPartido = {
-      id?: number; // Opcional, porque los partidos nuevos no lo tienen
+      id?: number; 
       equipo_local_id: number;
       equipo_visitante_id: number;
       estado: string;
@@ -92,14 +92,14 @@ export async function GET(request: Request) {
       const encontrado = equiposDB.find(e => {
         const nomDB = normalizar(e.nombre);
         
-        // 1. Coincidencia directa
+        // Coincidencia directa
         if (nomDB === nomCorto || nomDB === nomLargo) return true;
         if (nomCorto && nomDB.includes(nomCorto)) return true;
         if (nomLargo && nomDB.includes(nomLargo)) return true;
         if (nomCorto && nomCorto.includes(nomDB)) return true;
         if (nomLargo && nomLargo.includes(nomDB)) return true;
         
-        // 2. Coincidencia por Familia
+        // Coincidencia por Familia
         for (const familia of familiasEquipos) {
           const dbEnFamilia = familia.some(miembro => nomDB.includes(miembro) || miembro.includes(nomDB));
           const apiEnFamilia = familia.some(miembro => 
@@ -126,20 +126,26 @@ export async function GET(request: Request) {
         if (partido.status === 'IN_PLAY' || partido.status === 'PAUSED') estadoBD = 'en_juego';
         if (partido.status === 'FINISHED') estadoBD = 'finalizado';
 
-        // Buscamos en memoria (0 milisegundos)
         const partidoExistente = partidosExistentes.find(
           p => p.equipo_local_id === local.id && p.equipo_visitante_id === visitante.id
         );
 
-        const payload = {
+        let faseBD = 'fase_liga';
+        if (partido.stage === 'PLAYOFFS') faseBD = 'dieciseisavos';
+        if (partido.stage === 'LAST_16') faseBD = 'octavos';
+        if (partido.stage === 'QUARTER_FINALS') faseBD = 'cuartos';
+        if (partido.stage === 'SEMI_FINALS') faseBD = 'semis';
+        if (partido.stage === 'FINAL') faseBD = 'final';
+
+        const payload: DatosPartido = {
           equipo_local_id: local.id,
           equipo_visitante_id: visitante.id,
           estado: estadoBD,
           fecha_partido: partido.utcDate,
           goles_local: partido.score?.fullTime?.home ?? null,
           goles_visitante: partido.score?.fullTime?.away ?? null,
-          fase: 'fase_liga',
-          jornada: partido.matchday || 1
+          fase: faseBD, 
+          jornada: partido.matchday || 0 
         };
 
         if (partidoExistente) {
@@ -152,16 +158,13 @@ export async function GET(request: Request) {
       }
     }
 
-    // OPTIMIZACIÓN 2: Escritura masiva en lote (1 o 2 llamadas en total)
-// ... (el código de arriba queda igual, desde el for loop)
-
-    // 1. INTENTAMOS ACTUALIZAR (Y CAPTURAMOS EL ERROR SI EXPLOTA)
+    // INTENTAMOS ACTUALIZAR
     if (partidosAActualizar.length > 0) {
       const { error: errUpdate } = await supabaseAdmin
         .from('partidos')
         .upsert(partidosAActualizar, { onConflict: 'id' });
       
-      // SI HAY UN ERROR (COMO EL DE PUNTOS_TORNEO), LO MOSTRAMOS EN PANTALLA
+      // SI HAY UN ERROR, LO MOSTRAMOS EN PANTALLA
       if (errUpdate) {
         return NextResponse.json({ 
           error: "🛑 SUPABASE RECHAZÓ LA ACTUALIZACIÓN", 
@@ -171,7 +174,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // 2. INTENTAMOS INSERTAR
+    // INTENTAMOS INSERTAR
     if (partidosAInsertar.length > 0) {
       const { error: errInsert } = await supabaseAdmin.from('partidos').insert(partidosAInsertar);
       if (errInsert) {
@@ -182,7 +185,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // SI LLEGÓ HASTA AQUÍ, LA BASE DE DATOS LO ACEPTÓ PERFECTAMENTE
+    // LA BASE DE DATOS LO ACEPTÓ PERFECTAMENTE
     return NextResponse.json({
       success: true,
       message: `¡Datos guardados con éxito! Actualizados: ${partidosAActualizar.length} | Nuevos: ${partidosAInsertar.length}`,
