@@ -27,7 +27,10 @@ const familiasEquipos = [
   ["manchester united", "manchester united fc", "man united", "man utd"],
   ["aek atenas", "pae aek", "aek athens", "aek"],
   ["brujas", "club brugge", "brugge"],
-  ["lask", "lask linz"]
+  ["lask", "lask linz"],
+  ["atletico madrid", "atlético madrid", "atlético de madrid", "atletico de madrid", "atleti"],
+  ["slovan bratislava", "bratislava", "šk slovan bratislava"],
+  ["lens", "rc lens", "racing club de lens"]
 ];
 
 type ScorerAPI = {
