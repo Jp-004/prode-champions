@@ -27,9 +27,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const timestamp = new Date().getTime();
-    // Endpoint oficial de goleadores de Football-Data
-    const respuesta = await fetch(`https://api.football-data.org/v4/competitions/CL/scorers?_nocache=${timestamp}`, {
+const timestamp = new Date().getTime();
+    // Le agregamos limit=100 para traer hasta 100 jugadores
+    const respuesta = await fetch(`https://api.football-data.org/v4/competitions/CL/scorers?limit=100&_nocache=${timestamp}`, {
       method: 'GET',
       headers: { "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN! },
       cache: 'no-store'

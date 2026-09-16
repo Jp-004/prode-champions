@@ -3,58 +3,11 @@ import { supabaseAdmin } from '../../../lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
-const normalizar = (texto?: string) => {
-  if (!texto) return "";
-  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9\s]/g, "").toLowerCase().trim();
-};
-
-const familiasEquipos = [
-  ["estrella roja", "crvena zvezda", "crvena"],
-  ["bayern munich", "bayern munchen", "bayern"],
-  ["psg", "paris saintgermain", "paris sg", "paris saint germain"],
-  ["sporting lisboa", "sporting cp", "sporting"],
-  ["aston villa", "aston villa fc"],
-  ["inter", "internazionale", "inter milan"],
-  ["bologna", "bologna fc"],
-  ["rb leipzig", "leipzig"],
-  ["sturm graz", "sturm"],
-  ["salzburgo", "salzburg", "red bull salzburg"],
-  ["milan", "ac milan"],
-  ["barcelona", "fc barcelona", "barca"], 
-  ["shakhtar", "shakhtar donetsk", "fk shakhtar donetsk", "shaktar"], 
-  ["manchester city", "manchester city fc", "man city", "city"], 
-  ["manchester united", "manchester united fc", "man united", "man utd"],
-  ["aek atenas", "pae aek", "aek athens", "aek"],
-  ["brujas", "club brugge", "brugge"],
-  ["lask", "lask linz"]
-];
-
-// 1. Tipos estrictos para lo que recibimos de la API externa
-type FilaTablaAPI = {
-  position: number;
-  team: {
-    shortName?: string;
-    name?: string;
-  };
-  playedGames: number;
-  won: number;
-  draw: number;
-  lost: number;
-  points: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  goalDifference: number;
-};
-
-type StandingAPI = {
-  stage: string;
-  type: string;
-  table: FilaTablaAPI[];
-};
-
-// 2. Tipos estrictos para lo que enviamos a nuestra base de datos
-type EquipoActualizado = {
+// 1. Definimos estrictamente la forma de los datos que vamos a procesar
+type EquipoConStats = {
   id: number;
+  nombre: string;
+  escudo_url: string | null;
   posicion_real_actual: number;
   partidos_jugados: number;
   partidos_ganados: number;
@@ -66,6 +19,13 @@ type EquipoActualizado = {
   diferencia_goles: number;
 };
 
+// 2. Definimos lo que esperamos recibir de la base de datos básica
+type EquipoDB = {
+  id: number;
+  nombre: string;
+  escudo_url: string | null;
+};
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -73,62 +33,98 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const timestamp = new Date().getTime();
-    const respuesta = await fetch(`https://api.football-data.org/v4/competitions/CL/standings?_nocache=${timestamp}`, {
-      method: 'GET',
-      headers: { "X-Auth-Token": process.env.FOOTBALL_DATA_TOKEN! },
-      cache: 'no-store'
-    });
-    
-    const datosAPI = await respuesta.json();
-    
-    // Aplicamos el tipo StandingAPI al filtro para eliminar el (s: any)
-    const tablaLiga = datosAPI.standings?.find((s: StandingAPI) => s.type === 'TOTAL' && s.table && s.table.length > 0);
-    if (!tablaLiga) return NextResponse.json({ error: 'La API no devolvió la tabla de posiciones' });
+    // Traer TODOS los datos de los equipos
+    const { data: equipos, error: errEquipos } = await supabaseAdmin.from('equipos').select('*');
+    if (errEquipos || !equipos) throw new Error("No se pudieron cargar los equipos.");
 
-    const { data: equiposDB } = await supabaseAdmin.from('equipos').select('id, nombre');
+    // ¡Adiós al any! Le decimos al Map exactamente qué tipo de datos va a guardar
+    const statsMap = new Map<number, EquipoConStats>();
     
-    // Aplicamos el tipo EquipoActualizado a nuestro array para eliminar el (any[])
-    const equiposAActualizar: EquipoActualizado[] = [];
-
-    for (const item of tablaLiga.table) {
-      const encontrado = equiposDB?.find(e => {
-        const nomDB = normalizar(e.nombre);
-        const nomCorto = normalizar(item.team?.shortName);
-        const nomLargo = normalizar(item.team?.name);
-        
-        if (nomDB === nomCorto || nomDB === nomLargo) return true;
-        for (const familia of familiasEquipos) {
-          if (familia.some(m => nomDB.includes(m)) && familia.some(m => nomCorto?.includes(m) || nomLargo?.includes(m))) return true;
-        }
-        return false;
+    // Iteramos aplicando el tipo EquipoDB para que TypeScript sepa qué es "eq"
+    equipos.forEach((eq: EquipoDB) => {
+      statsMap.set(eq.id, {
+        id: eq.id,
+        nombre: eq.nombre,
+        escudo_url: eq.escudo_url,
+        posicion_real_actual: 0,
+        partidos_jugados: 0,
+        partidos_ganados: 0,
+        partidos_empatados: 0,
+        partidos_perdidos: 0,
+        puntos: 0,
+        goles_favor: 0,
+        goles_contra: 0,
+        diferencia_goles: 0
       });
+    });
 
-      if (encontrado) {
-        equiposAActualizar.push({
-          id: encontrado.id,
-          posicion_real_actual: item.position,
-          partidos_jugados: item.playedGames,
-          partidos_ganados: item.won,
-          partidos_empatados: item.draw,
-          partidos_perdidos: item.lost,
-          puntos: item.points,
-          goles_favor: item.goalsFor,
-          goles_contra: item.goalsAgainst,
-          diferencia_goles: item.goalDifference
-        });
-      }
+    // Traer SOLO los partidos FINALIZADOS
+    const { data: partidos, error: errPartidos } = await supabaseAdmin
+      .from('partidos')
+      .select('equipo_local_id, equipo_visitante_id, goles_local, goles_visitante')
+      .eq('estado', 'finalizado')
+      .eq('fase', 'fase_liga');
+    
+    if (errPartidos) throw new Error("Error cargando partidos.");
+
+    // Calcular puntos
+    if (partidos) {
+      partidos.forEach(p => {
+        const local = statsMap.get(p.equipo_local_id);
+        const visitante = statsMap.get(p.equipo_visitante_id);
+
+        if (local && visitante && p.goles_local !== null && p.goles_visitante !== null) {
+          local.partidos_jugados += 1;
+          visitante.partidos_jugados += 1;
+
+          local.goles_favor += p.goles_local;
+          local.goles_contra += p.goles_visitante;
+          local.diferencia_goles = local.goles_favor - local.goles_contra;
+
+          visitante.goles_favor += p.goles_visitante;
+          visitante.goles_contra += p.goles_local;
+          visitante.diferencia_goles = visitante.goles_favor - visitante.goles_contra;
+
+          if (p.goles_local > p.goles_visitante) {
+            local.puntos += 3;
+            local.partidos_ganados += 1;
+            visitante.partidos_perdidos += 1;
+          } else if (p.goles_local < p.goles_visitante) {
+            visitante.puntos += 3;
+            visitante.partidos_ganados += 1;
+            local.partidos_perdidos += 1;
+          } else {
+            local.puntos += 1;
+            local.partidos_empatados += 1;
+            visitante.puntos += 1;
+            visitante.partidos_empatados += 1;
+          }
+        }
+      });
     }
 
-    if (equiposAActualizar.length > 0) {
-      await supabaseAdmin.from('equipos').upsert(equiposAActualizar, { onConflict: 'id' });
-    }
+    // Ordenar
+    const tablaArray = Array.from(statsMap.values());
+    tablaArray.sort((a, b) => {
+      if (b.puntos !== a.puntos) return b.puntos - a.puntos;
+      if (b.diferencia_goles !== a.diferencia_goles) return b.diferencia_goles - a.diferencia_goles;
+      return b.goles_favor - a.goles_favor;
+    });
 
-    return NextResponse.json({ success: true, message: `¡Tabla actualizada al instante! Equipos: ${equiposAActualizar.length}` });
+    // Asignar posición
+    const equiposAActualizar = tablaArray.map((eq, index) => {
+      eq.posicion_real_actual = index + 1;
+      return eq;
+    });
+
+    // Guardar en Supabase
+    const { error: errUpsert } = await supabaseAdmin.from('equipos').upsert(equiposAActualizar, { onConflict: 'id' });
+    if (errUpsert) throw new Error("Error al guardar la tabla: " + errUpsert.message);
+
+    return NextResponse.json({ success: true, message: `¡Tabla calculada internamente y actualizada! Equipos procesados: ${equiposAActualizar.length}` });
 
   } catch (error) {
-    // Manejo de error estricto de TypeScript
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    return NextResponse.json({ error: 'Error del servidor al actualizar tabla', detalles: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'Error al calcular tabla', detalles: errorMessage }, { status: 500 });
   }
 }
