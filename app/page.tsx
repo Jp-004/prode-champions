@@ -4,6 +4,8 @@ import { supabase } from "../lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { Trophy, Medal, Lock, X } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 type EquipoInfo = { nombre: string; escudo_url: string | null };
 type Perfil = {
   id: string;
