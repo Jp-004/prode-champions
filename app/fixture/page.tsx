@@ -30,7 +30,7 @@ export default function FixturePage() {
   const [pronosticosUsuarios, setPronosticosUsuarios] = useState<PronosticoEspia[]>([]);
   const [cargandoPronosticos, setCargandoPronosticos] = useState(false);
 
-  const FECHA_LIMITE = new Date("2026-09-17T16:00:00Z");
+  const FECHA_LIMITE = new Date("2026-09-15T16:00:00Z");
   const bloqueoActivo = new Date() > FECHA_LIMITE;
 
   const mostrarNotificacion = (mensaje: string, tipo: "exito" | "error" = "exito") => {
