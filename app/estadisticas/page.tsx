@@ -12,6 +12,7 @@ type Goleador = {
   goles: number;
   asistencias: number;
   penales: number;
+  escudo_url: string | null;
 };
 
 export default function EstadisticasPage() {
@@ -88,11 +89,18 @@ export default function EstadisticasPage() {
                         {jugador.jugador_nombre}
                       </td>
                       
-                      {/* Equipo */}
+                      {/* Equipo con Escudo */}
                       <td className="py-3.5 px-4">
-                        <span className="text-xs md:text-sm font-semibold uppercase tracking-wider text-gray-400">
-                          {jugador.equipo_nombre}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {jugador.escudo_url ? (
+                            <img src={jugador.escudo_url} alt="Escudo" className="w-5 h-5 object-contain drop-shadow-md" />
+                          ) : (
+                            <div className="w-5 h-5 bg-gray-800 rounded-full border border-gray-700 shrink-0"></div>
+                          )}
+                          <span className="text-xs md:text-sm font-semibold uppercase tracking-wider text-gray-400">
+                            {jugador.equipo_nombre}
+                          </span>
+                        </div>
                       </td>
                       
                       {/* Goles (Destacado) */}

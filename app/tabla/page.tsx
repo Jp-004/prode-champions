@@ -27,6 +27,7 @@ type Goleador = {
   jugador_nombre: string;
   equipo_nombre: string;
   goles: number;
+  escudo_url: string | null;
 };
 
 export default function TablaOficialPage() {
@@ -50,7 +51,7 @@ export default function TablaOficialPage() {
     const fetchGoleadores = async () => {
       const { data } = await supabase
         .from("goleadores")
-        .select("id, jugador_nombre, equipo_nombre, goles")
+        .select("id, jugador_nombre, equipo_nombre, goles, escudo_url")
         .order("goles", { ascending: false })
         .limit(5);
 
@@ -181,12 +182,12 @@ export default function TablaOficialPage() {
                   <div className="space-y-3.5">
                     {goleadores.map((jugador, index) => (
                       <div key={jugador.id} className="flex items-center justify-between bg-gray-950/50 p-3 rounded-lg border border-gray-800/50 hover:bg-gray-800/50 transition">
-                        <div className="flex items-center gap-3 md:gap-4">
-                          <span className={`font-black text-base w-6 text-center ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-700' : 'text-gray-600'}`}>
-                            {index + 1}
-                          </span>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-gray-200 line-clamp-1">{jugador.jugador_nombre}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-gray-200 line-clamp-1">{jugador.jugador_nombre}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {jugador.escudo_url && (
+                              <img src={jugador.escudo_url} alt={jugador.equipo_nombre} className="w-3.5 h-3.5 object-contain drop-shadow-sm" />
+                            )}
                             <span className="text-[10px] md:text-xs uppercase tracking-wider text-gray-500">{jugador.equipo_nombre}</span>
                           </div>
                         </div>
